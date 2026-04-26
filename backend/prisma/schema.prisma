@@ -1,0 +1,551 @@
+// Prisma Schema for Nepal Clinic Management System
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+  LAB_TECH
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BillStatus {
+  DRAFT
+  PENDING
+  PAID
+  PARTIAL
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  ESEWA
+  KHALTI
+  BANK_TRANSFER
+  INSURANCE
+  OTHER
+}
+
+enum StockTransactionType {
+  PURCHASE
+  DISPENSED
+  ADJUSTMENT
+  EXPIRED
+  RETURNED
+}
+
+enum LabResultStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  VIEW
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String?   @unique
+  passwordHash  String
+  role          Role      @default(RECEPTIONIST)
+  isActive      Boolean   @default(true)
+
+  // Profile
+  fullName      String
+  fullNameNe    String?   // Nepali name (Devanagari)
+  licenseNumber String?   // For doctors: NMC license number
+  specialization String?  // For doctors
+  signature     String?   // Base64 signature image path
+
+  // Relations
+  doctorAppointments  Appointment[]  @relation("DoctorAppointments")
+  createdAppointments Appointment[]  @relation("CreatedByAppointments")
+  encounters          Encounter[]
+  auditLogs           AuditLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// PATIENTS
+// ─────────────────────────────────────────────
+
+model Patient {
+  id              String    @id @default(cuid())
+
+  // Identity
+  patientCode     String    @unique  // Auto-generated: e.g. P-2081-00001
+  fullName        String
+  fullNameNe      String?             // Nepali script name
+  gender          Gender
+  bloodGroup      String?             // A+, B-, O+, AB+, etc.
+
+  // Date of Birth (both calendars stored)
+  dobAD           DateTime?           // Gregorian DOB
+  dobBS           String?             // BS DOB as string "2045-06-15"
+  dobBSYear       Int?                // For age queries
+  dobBSMonth      Int?
+  dobBSDay        Int?
+
+  // Contact
+  phone           String?
+  phone2          String?
+  email           String?
+  emergencyContact      String?
+  emergencyContactPhone String?
+  emergencyContactRel   String?       // Relationship
+
+  // Address (Nepal-specific hierarchy)
+  province        String?
+  district        String?
+  municipality    String?
+  ward            String?
+  tole            String?             // Street/locality
+  houseNo         String?
+
+  // Medical history
+  allergies       String[]            // Array of allergy strings
+  chronicConditions String[]
+  notes           String?
+
+  // Insurance
+  insuranceProvider String?
+  insurancePolicyNo String?
+
+  // Relations
+  appointments    Appointment[]
+  encounters      Encounter[]
+  prescriptions   Prescription[]
+  bills           Bill[]
+  labResults      LabResult[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?           // Soft delete
+
+  @@index([patientCode])
+  @@index([fullName])
+  @@index([phone])
+  @@index([dobBSYear])
+  @@map("patients")
+}
+
+// ─────────────────────────────────────────────
+// APPOINTMENTS
+// ─────────────────────────────────────────────
+
+model Appointment {
+  id            String            @id @default(cuid())
+
+  patient       Patient           @relation(fields: [patientId], references: [id])
+  patientId     String
+
+  doctor        User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  doctorId      String
+
+  createdBy     User              @relation("CreatedByAppointments", fields: [createdById], references: [id])
+  createdById   String
+
+  // Scheduling (both calendars)
+  appointmentDateAD   DateTime          // Gregorian datetime
+  appointmentDateBS   String            // e.g. "2081-06-15"
+  appointmentDateBSYear  Int
+  appointmentDateBSMonth Int
+  appointmentDateBSDay   Int
+  appointmentTime     String            // "10:30 AM"
+  duration            Int     @default(15) // minutes
+
+  status        AppointmentStatus @default(SCHEDULED)
+  type          String            @default("OPD")  // OPD, Follow-up, Emergency
+  chiefComplaint String?
+  notes         String?
+  tokenNumber   Int?              // Daily queue token
+
+  encounter     Encounter?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDateBSYear, appointmentDateBSMonth, appointmentDateBSDay])
+  @@index([status])
+  @@map("appointments")
+}
+
+// ─────────────────────────────────────────────
+// ENCOUNTERS (Clinical Visit / SOAP Notes)
+// ─────────────────────────────────────────────
+
+model Encounter {
+  id            String    @id @default(cuid())
+
+  patient       Patient   @relation(fields: [patientId], references: [id])
+  patientId     String
+
+  doctor        User      @relation(fields: [doctorId], references: [id])
+  doctorId      String
+
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  appointmentId String?   @unique
+
+  // Visit date (both calendars)
+  visitDateAD   DateTime  @default(now())
+  visitDateBS   String
+
+  // Vitals
+  weightKg      Float?
+  heightCm      Float?
+  bmi           Float?
+  temperature   Float?    // Celsius
+  pulseRate     Int?      // bpm
+  respiratoryRate Int?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  oxygenSaturation Float? // SpO2 %
+  bloodSugar    Float?    // mg/dL
+
+  // SOAP Notes
+  subjective    String?   // Chief complaint & history
+  objective     String?   // Examination findings
+  assessment    String?   // Diagnosis / ICD codes
+  plan          String?   // Treatment plan
+
+  // ICD-10 Diagnoses (stored as JSON array)
+  diagnoses     Json?     // [{ code: "J00", description: "Common cold" }]
+
+  followUpDateAD DateTime?
+  followUpDateBS String?
+  followUpNotes  String?
+
+  isAdmitted    Boolean   @default(false)
+
+  prescriptions Prescription[]
+  labResults    LabResult[]
+  bills         Bill[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDateAD])
+  @@map("encounters")
+}
+
+// ─────────────────────────────────────────────
+// PRESCRIPTIONS
+// ─────────────────────────────────────────────
+
+model Prescription {
+  id            String    @id @default(cuid())
+
+  patient       Patient   @relation(fields: [patientId], references: [id])
+  patientId     String
+
+  encounter     Encounter @relation(fields: [encounterId], references: [id])
+  encounterId   String
+
+  // Items stored as JSON for flexibility
+  // [{ drugName, genericName, dose, frequency, duration, route, instructions, quantity }]
+  items         Json
+
+  notes         String?
+  isDispensed   Boolean   @default(false)
+  dispensedAt   DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([encounterId])
+  @@map("prescriptions")
+}
+
+// ─────────────────────────────────────────────
+// BILLING
+// ─────────────────────────────────────────────
+
+model Bill {
+  id            String      @id @default(cuid())
+  billNumber    String      @unique  // e.g. INV-2081-00001
+
+  patient       Patient     @relation(fields: [patientId], references: [id])
+  patientId     String
+
+  encounter     Encounter?  @relation(fields: [encounterId], references: [id])
+  encounterId   String?
+
+  // Dates
+  billDateAD    DateTime    @default(now())
+  billDateBS    String
+
+  // Amounts
+  subtotal      Decimal     @db.Decimal(10, 2)
+  discountType  String?     // PERCENT or FIXED
+  discountValue Decimal     @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal    @default(0) @db.Decimal(10, 2)
+  taxPercent    Decimal     @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal     @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  paidAmount    Decimal     @default(0) @db.Decimal(10, 2)
+  dueAmount     Decimal     @db.Decimal(10, 2)
+
+  status        BillStatus  @default(PENDING)
+  paymentMethod PaymentMethod?
+  insuranceClaim Boolean    @default(false)
+  notes         String?
+
+  items         BillItem[]
+  payments      Payment[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([patientId])
+  @@index([billDateAD])
+  @@index([status])
+  @@map("bills")
+}
+
+model BillItem {
+  id            String    @id @default(cuid())
+
+  bill          Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  billId        String
+
+  description   String
+  category      String    // CONSULTATION, LAB, MEDICINE, PROCEDURE, OTHER
+  quantity      Decimal   @db.Decimal(10, 2)
+  unitPrice     Decimal   @db.Decimal(10, 2)
+  totalPrice    Decimal   @db.Decimal(10, 2)
+
+  @@index([billId])
+  @@map("bill_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+
+  bill          Bill          @relation(fields: [billId], references: [id])
+  billId        String
+
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  reference     String?       // Transaction ID for digital payments
+  notes         String?
+  paidAt        DateTime      @default(now())
+
+  @@index([billId])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────
+
+model InventoryItem {
+  id              String    @id @default(cuid())
+  itemCode        String    @unique   // e.g. MED-0001
+  name            String
+  genericName     String?
+  category        String    // MEDICINE, CONSUMABLE, EQUIPMENT
+  unit            String    // tablet, bottle, piece
+  manufacturer    String?
+  batchNumber     String?
+  expiryDateAD    DateTime?
+  expiryDateBS    String?
+
+  // Stock
+  currentStock    Int       @default(0)
+  minimumStock    Int       @default(10)  // Alert threshold
+  purchasePrice   Decimal   @db.Decimal(10, 2)
+  sellingPrice    Decimal   @db.Decimal(10, 2)
+
+  transactions    StockTransaction[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([name])
+  @@index([category])
+  @@index([currentStock])
+  @@map("inventory_items")
+}
+
+model StockTransaction {
+  id            String                @id @default(cuid())
+
+  item          InventoryItem         @relation(fields: [itemId], references: [id])
+  itemId        String
+
+  type          StockTransactionType
+  quantity      Int
+  balanceAfter  Int
+  unitCost      Decimal?              @db.Decimal(10, 2)
+  reference     String?               // PO number, prescription ID, etc.
+  notes         String?
+  transactedAt  DateTime              @default(now())
+
+  @@index([itemId])
+  @@index([type])
+  @@map("stock_transactions")
+}
+
+// ─────────────────────────────────────────────
+// LAB
+// ─────────────────────────────────────────────
+
+model LabTest {
+  id          String    @id @default(cuid())
+  testCode    String    @unique
+  testName    String
+  category    String    // HEMATOLOGY, BIOCHEMISTRY, MICROBIOLOGY, etc.
+  price       Decimal   @db.Decimal(10, 2)
+  normalRange String?   // e.g. "4.5-11.0 × 10³/μL"
+  unit        String?
+  isActive    Boolean   @default(true)
+
+  results     LabResult[]
+
+  @@map("lab_tests")
+}
+
+model LabResult {
+  id            String          @id @default(cuid())
+
+  patient       Patient         @relation(fields: [patientId], references: [id])
+  patientId     String
+
+  encounter     Encounter?      @relation(fields: [encounterId], references: [id])
+  encounterId   String?
+
+  test          LabTest         @relation(fields: [testId], references: [id])
+  testId        String
+
+  status        LabResultStatus @default(PENDING)
+
+  // Results can be complex JSON
+  resultData    Json?           // { value, unit, isAbnormal, note }
+  interpretation String?
+  notes         String?
+
+  orderedAt     DateTime        @default(now())
+  collectedAt   DateTime?
+  processedAt   DateTime?
+  resultAt      DateTime?
+
+  @@index([patientId])
+  @@index([status])
+  @@map("lab_results")
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOGS
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id            String      @id @default(cuid())
+
+  user          User?       @relation(fields: [userId], references: [id])
+  userId        String?
+  userEmail     String?     // Denormalized for deleted users
+
+  action        AuditAction
+  tableName     String
+  recordId      String?
+  oldValues     Json?
+  newValues     Json?
+  ipAddress     String?
+  userAgent     String?
+  description   String?
+
+  createdAt     DateTime    @default(now())
+
+  @@index([userId])
+  @@index([tableName, recordId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// CLINIC SETTINGS
+// ─────────────────────────────────────────────
+
+model ClinicSettings {
+  id                String    @id @default(cuid())
+  key               String    @unique
+  value             String
+  description       String?
+  updatedAt         DateTime  @updatedAt
+
+  @@map("clinic_settings")
+}
+
+// Example settings keys:
+// clinic_name, clinic_name_ne, clinic_address, clinic_phone
+// pan_number, logo_url, currency, tax_percent
+// appointment_duration_default, working_hours_start, working_hours_end
+
+// ─────────────────────────────────────────────
+// SMS TEMPLATES
+// ─────────────────────────────────────────────
+
+model SmsTemplate {
+  id          String    @id @default(cuid())
+  name        String    @unique  // e.g. APPOINTMENT_REMINDER
+  templateNe  String?   // Nepali template
+  templateEn  String    // English template
+  isActive    Boolean   @default(true)
+  // Variables: {{patientName}}, {{doctorName}}, {{date}}, {{time}}
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("sms_templates")
+}
