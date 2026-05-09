@@ -51,14 +51,13 @@ router.get("/", async (req, res, next) => {
 router.get("/low-stock", async (req, res, next) => {
 	try {
 		const items = await prisma.$queryRaw`
-      SELECT id, item_code as "itemCode", name, generic_name as "genericName",
-             category, unit, current_stock as "currentStock", minimum_stock as "minimumStock",
-             selling_price as "sellingPrice"
-      FROM inventory_items
-      WHERE current_stock <= minimum_stock
-      ORDER BY (current_stock::float / NULLIF(minimum_stock, 0)) ASC
-      LIMIT 20
-    `;
+  SELECT id, "itemCode", name, "genericName", category, unit,
+         "currentStock", "minimumStock", "sellingPrice"
+  FROM inventory_items
+  WHERE "currentStock" <= "minimumStock"
+  ORDER BY ("currentStock"::float / NULLIF("minimumStock", 0)) ASC
+  LIMIT 20
+`;
 		return sendSuccess(res, items);
 	} catch (err) {
 		next(err);

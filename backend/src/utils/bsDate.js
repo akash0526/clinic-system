@@ -42,7 +42,10 @@ export const bsToAD = (bsString) => {
 		return null;
 	}
 };
-
+export const parseBSDate = (bsString) => {
+	const [year, month, day] = bsString.split("-").map(Number);
+	return { year, month, day };
+};
 export const todayBSString = () => {
 	if (!_BSSync) {
 		// Approximate fallback: AD year + 56/57
@@ -59,3 +62,4 @@ export const todayBSString = () => {
 		return "";
 	}
 };
+export const todayBS = todayBSString;
