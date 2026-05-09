@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, forwardRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,21 +11,9 @@ import BSDatePicker from "../../components/shared/BSDatePicker";
 import { patientsApi } from "../../api/patients.api";
 
 // ─── Nepal Address Data ───────────────────────────────────
-
-const PROVINCES = [
-	"Koshi",
-	"Madhesh",
-	"Bagmati",
-	"Gandaki",
-	"Lumbini",
-	"Karnali",
-	"Sudurpashchim",
-];
-
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
 // ─── Form Validation ─────────────────────────────────────
-
 const formSchema = z.object({
 	fullName: z.string().min(2, "Name required"),
 	fullNameNe: z.string().optional(),
@@ -39,7 +27,7 @@ const formSchema = z.object({
 		.regex(/^[0-9]{10}$/, "10 digit phone number required")
 		.optional()
 		.or(z.literal("")),
-	phone2: z.string().optional(),
+	phone2: z.string().optional().or(z.literal("")),
 	email: z.string().email().optional().or(z.literal("")),
 	emergencyContact: z.string().optional(),
 	emergencyContactPhone: z.string().optional(),
@@ -56,7 +44,35 @@ const formSchema = z.object({
 	insurancePolicyNo: z.string().optional(),
 });
 
-// ─── Reusable Field Component ─────────────────────────────
+// ─── Reusable Components with forwardRef ──────────────────
+const Input = forwardRef(({ className = "", ...props }, ref) => (
+	<input
+		ref={ref}
+		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+      disabled:bg-gray-100 ${className}`}
+		{...props}
+	/>
+));
+
+const Select = forwardRef(({ children, className = "", ...props }, ref) => (
+	<select
+		ref={ref}
+		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white
+      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${className}`}
+		{...props}
+	>
+		{children}
+	</select>
+));
+
+const Textarea = forwardRef(({ className = "", ...props }, ref) => (
+	<textarea
+		ref={ref}
+		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${className}`}
+		{...props}
+	/>
+));
 
 const Field = ({ label, labelNe, error, required, children }) => (
 	<div>
@@ -74,27 +90,7 @@ const Field = ({ label, labelNe, error, required, children }) => (
 	</div>
 );
 
-const Input = ({ className = "", ...props }) => (
-	<input
-		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-      disabled:bg-gray-100 ${className}`}
-		{...props}
-	/>
-);
-
-const Select = ({ children, className = "", ...props }) => (
-	<select
-		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white
-      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${className}`}
-		{...props}
-	>
-		{children}
-	</select>
-);
-
-// ─── Multi-tag input for allergies/conditions ─────────────
-
+// Multi-tag input (no forwardRef needed, used with Controller)
 const TagInput = ({ value = [], onChange, placeholder }) => {
 	const add = (e) => {
 		if (e.key === "Enter" || e.key === ",") {
@@ -137,8 +133,6 @@ const TagInput = ({ value = [], onChange, placeholder }) => {
 	);
 };
 
-// ─── Section Header ───────────────────────────────────────
-
 const Section = ({ title }) => (
 	<div className="col-span-full mt-2 mb-1">
 		<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b pb-2">
@@ -147,8 +141,7 @@ const Section = ({ title }) => (
 	</div>
 );
 
-// ─── Main Form ────────────────────────────────────────────
-
+// ─── Main Form Component ───────────────────────────────────
 const PatientForm = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -170,12 +163,22 @@ const PatientForm = () => {
 		formState: { errors, isDirty },
 	} = useForm({
 		resolver: zodResolver(formSchema),
-		defaultValues: { gender: "MALE", allergies: [], chronicConditions: [] },
+		defaultValues: {
+			gender: "MALE",
+			allergies: [],
+			chronicConditions: [],
+		},
 	});
 
-	// Populate form when editing
 	useEffect(() => {
-		if (existingPatient) reset(existingPatient);
+		if (existingPatient) {
+			// Ensure arrays are arrays (they might come as strings from API)
+			reset({
+				...existingPatient,
+				allergies: existingPatient.allergies || [],
+				chronicConditions: existingPatient.chronicConditions || [],
+			});
+		}
 	}, [existingPatient, reset]);
 
 	const mutation = useMutation({
@@ -190,6 +193,8 @@ const PatientForm = () => {
 			const errors = err.response?.data?.errors;
 			if (errors) {
 				errors.forEach((e) => toast.error(`${e.field}: ${e.message}`));
+			} else {
+				toast.error(err.response?.data?.message || "An error occurred");
 			}
 		},
 	});
@@ -205,7 +210,7 @@ const PatientForm = () => {
 
 	return (
 		<div className="p-6 max-w-4xl mx-auto">
-			{/* ── Header ───────────────────────────── */}
+			{/* Header */}
 			<div className="flex items-center gap-4 mb-6">
 				<button
 					onClick={() => navigate(-1)}
@@ -228,9 +233,8 @@ const PatientForm = () => {
 			<form onSubmit={handleSubmit(onSubmit)}>
 				<div className="bg-white rounded-xl border border-gray-200 p-6">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-						{/* ── Personal Info ─────────────────── */}
+						{/* Personal Info */}
 						<Section title="Personal Information / व्यक्तिगत जानकारी" />
-
 						<Field
 							label="Full Name"
 							labelNe="पुरा नाम"
@@ -242,7 +246,6 @@ const PatientForm = () => {
 								placeholder="Full name in English"
 							/>
 						</Field>
-
 						<Field label="नाम (नेपालीमा)" error={errors.fullNameNe?.message}>
 							<Input
 								{...register("fullNameNe")}
@@ -250,7 +253,6 @@ const PatientForm = () => {
 								className="font-nepali"
 							/>
 						</Field>
-
 						<Field
 							label="Gender / लिङ्ग"
 							required
@@ -262,7 +264,6 @@ const PatientForm = () => {
 								<option value="OTHER">Other / अन्य</option>
 							</Select>
 						</Field>
-
 						<Field
 							label="Blood Group / रक्त समूह"
 							error={errors.bloodGroup?.message}
@@ -276,8 +277,6 @@ const PatientForm = () => {
 								))}
 							</Select>
 						</Field>
-
-						{/* BS Date Picker */}
 						<Field
 							label="Date of Birth (BS) / जन्म मिति (बि.सं.)"
 							error={errors.dobBS?.message}
@@ -291,9 +290,8 @@ const PatientForm = () => {
 							/>
 						</Field>
 
-						{/* ── Contact Info ──────────────────── */}
+						{/* Contact Info */}
 						<Section title="Contact Information / सम्पर्क जानकारी" />
-
 						<Field label="Phone / फोन" error={errors.phone?.message}>
 							<Input
 								{...register("phone")}
@@ -301,7 +299,6 @@ const PatientForm = () => {
 								type="tel"
 							/>
 						</Field>
-
 						<Field label="Alternate Phone" error={errors.phone2?.message}>
 							<Input
 								{...register("phone2")}
@@ -309,7 +306,6 @@ const PatientForm = () => {
 								type="tel"
 							/>
 						</Field>
-
 						<Field label="Email" error={errors.email?.message}>
 							<Input
 								{...register("email")}
@@ -317,7 +313,6 @@ const PatientForm = () => {
 								type="email"
 							/>
 						</Field>
-
 						<Field
 							label="Emergency Contact / आपतकालीन सम्पर्क"
 							error={errors.emergencyContact?.message}
@@ -327,7 +322,6 @@ const PatientForm = () => {
 								placeholder="Contact person name"
 							/>
 						</Field>
-
 						<Field
 							label="Emergency Phone"
 							error={errors.emergencyContactPhone?.message}
@@ -338,7 +332,6 @@ const PatientForm = () => {
 								type="tel"
 							/>
 						</Field>
-
 						<Field
 							label="Relationship / नाताsambandha"
 							error={errors.emergencyContactRel?.message}
@@ -361,24 +354,29 @@ const PatientForm = () => {
 							</Select>
 						</Field>
 
-						{/* ── Address ───────────────────────── */}
+						{/* Address */}
 						<Section title="Address / ठेगाना" />
-
 						<Field label="Province / प्रदेश" error={errors.province?.message}>
 							<Select {...register("province")}>
 								<option value="">Select province...</option>
-								{PROVINCES.map((p) => (
+								{[
+									"Koshi",
+									"Madhesh",
+									"Bagmati",
+									"Gandaki",
+									"Lumbini",
+									"Karnali",
+									"Sudurpashchim",
+								].map((p) => (
 									<option key={p} value={p}>
 										{p}
 									</option>
 								))}
 							</Select>
 						</Field>
-
 						<Field label="District / जिल्ला" error={errors.district?.message}>
 							<Input {...register("district")} placeholder="e.g. Kathmandu" />
 						</Field>
-
 						<Field
 							label="Municipality / VDC"
 							error={errors.municipality?.message}
@@ -388,7 +386,6 @@ const PatientForm = () => {
 								placeholder="Municipality or VDC name"
 							/>
 						</Field>
-
 						<Field label="Ward No. / वडा नं." error={errors.ward?.message}>
 							<Input
 								{...register("ward")}
@@ -398,7 +395,6 @@ const PatientForm = () => {
 								max="33"
 							/>
 						</Field>
-
 						<Field label="Tole / Street" error={errors.tole?.message}>
 							<Input
 								{...register("tole")}
@@ -406,9 +402,8 @@ const PatientForm = () => {
 							/>
 						</Field>
 
-						{/* ── Medical History ───────────────── */}
+						{/* Medical History */}
 						<Section title="Medical History / चिकित्सा इतिहास" />
-
 						<div className="col-span-full">
 							<Field
 								label="Known Allergies / एलर्जीहरू (press Enter to add)"
@@ -427,7 +422,6 @@ const PatientForm = () => {
 								/>
 							</Field>
 						</div>
-
 						<div className="col-span-full">
 							<Field
 								label="Chronic Conditions (press Enter to add)"
@@ -446,28 +440,24 @@ const PatientForm = () => {
 								/>
 							</Field>
 						</div>
-
 						<div className="col-span-full">
 							<Field label="Notes / टिप्पणी" error={errors.notes?.message}>
-								<textarea
+								<Textarea
 									{...register("notes")}
 									rows={3}
 									placeholder="Additional notes about the patient..."
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
 								/>
 							</Field>
 						</div>
 
-						{/* ── Insurance ─────────────────────── */}
+						{/* Insurance */}
 						<Section title="Insurance / बीमा" />
-
 						<Field label="Insurance Provider">
 							<Input
 								{...register("insuranceProvider")}
 								placeholder="Insurance company name"
 							/>
 						</Field>
-
 						<Field label="Policy Number">
 							<Input
 								{...register("insurancePolicyNo")}
@@ -476,7 +466,7 @@ const PatientForm = () => {
 						</Field>
 					</div>
 
-					{/* ── Form Actions ─────────────────────── */}
+					{/* Form Actions */}
 					<div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
 						<button
 							type="button"
