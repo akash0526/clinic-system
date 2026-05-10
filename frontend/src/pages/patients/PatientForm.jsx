@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import { ArrowLeft, Save } from "lucide-react";
 import BSDatePicker from "../../components/shared/BSDatePicker";
 import { patientsApi } from "../../api/patients.api";
+import { DatePicker } from "hamro-nepali-patro";
+import "hamro-nepali-patro/dist/styles.css";
 
 // ─── Nepal Address Data ───────────────────────────────────
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
@@ -285,7 +287,16 @@ const PatientForm = () => {
 								name="dobBS"
 								control={control}
 								render={({ field }) => (
-									<BSDatePicker field={field} language="ne" />
+									<DatePicker
+										value={field.value}
+										onChange={(val) => field.onChange(val)}
+										calendarType="BS"
+										dateFormat="YYYY-MM-DD"
+										showMonthDropdown
+										showYearDropdown
+										isClearable
+										placeholder="Select date of birth (BS)"
+									/>
 								)}
 							/>
 						</Field>

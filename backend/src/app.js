@@ -18,6 +18,7 @@ const encounterRoutes = require("./modules/encounters/encounter.routes");
 const billingRoutes = require("./modules/billing/bill.routes");
 const inventoryRoutes = require("./modules/inventory/inventory.routes");
 const labRoutes = require("./modules/lab/lab.routes");
+const userRoutes = require("./modules/users/user.routes");
 const settingsRoutes = require("./modules/settings/settings.routes");
 const dashboardRoutes = require("./modules/dashboard/dashboard.routes");
 
@@ -65,6 +66,7 @@ app.use("/api/encounters", encounterRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/lab", labRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
@@ -79,12 +81,10 @@ app.get("/api/health", (req, res) => {
 
 // ── 404 ───────────────────────────────────────────────────
 app.use((req, res) => {
-	res
-		.status(404)
-		.json({
-			success: false,
-			message: `Route not found: ${req.method} ${req.path}`,
-		});
+	res.status(404).json({
+		success: false,
+		message: `Route not found: ${req.method} ${req.path}`,
+	});
 });
 
 // ── Global error handler (must be last) ───────────────────

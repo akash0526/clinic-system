@@ -12,7 +12,7 @@ import InventoryPage from "./pages/inventory/InventoryPage";
 import LabPage from "./pages/lab/LabPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import useAuthStore from "./store/authStore";
-
+import UsersPage from "./pages/users/UsersPage";
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
 	const { isAuthenticated } = useAuthStore();
@@ -44,6 +44,7 @@ export const router = createBrowserRouter([
 			{ path: "billing", element: <BillingPage /> },
 			{ path: "inventory", element: <InventoryPage /> },
 			{ path: "lab", element: <LabPage /> },
+			{ path: "users", element: <UsersPage /> },
 			{ path: "settings", element: <SettingsPage /> },
 		],
 	},

@@ -109,11 +109,40 @@ const Login = () => {
 						</button>
 					</form>
 
+					{/* Updated Demo Credentials Section */}
 					<div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-1">
 						<p className="font-medium text-gray-600 mb-2">Demo Credentials:</p>
-						<p>Admin: admin@clinic.com / Admin@12345</p>
-						<p>Doctor: doctor@clinic.com / Doctor@12345</p>
-						<p>Reception: reception@clinic.com / Staff@12345</p>
+
+						{/* This matches the email and password from your seed.js exactly */}
+						<div className="flex justify-between items-center border-b border-gray-200 pb-1 mb-1">
+							<span>
+								Admin:{" "}
+								<span className="font-mono text-primary-700">
+									admin@clinic.com
+								</span>
+							</span>
+							<span className="font-mono">Admin@12345</span>
+						</div>
+
+						<div className="flex justify-between items-center border-b border-gray-200 pb-1 mb-1">
+							<span>
+								Doctor:{" "}
+								<span className="font-mono text-primary-700">
+									doctor@clinic.com
+								</span>
+							</span>
+							<span className="font-mono">Doctor@12345</span>
+						</div>
+
+						<div className="flex justify-between items-center">
+							<span>
+								Reception:{" "}
+								<span className="font-mono text-primary-700">
+									reception@clinic.com
+								</span>
+							</span>
+							<span className="font-mono">Staff@12345</span>
+						</div>
 					</div>
 				</div>
 			</div>

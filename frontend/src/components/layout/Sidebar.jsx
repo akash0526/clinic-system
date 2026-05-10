@@ -33,6 +33,13 @@ const NAV = [
 		roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 	},
 	{
+		to: "/users",
+		icon: Users,
+		label: "Users",
+		labelNe: "प्रयोगकर्ता",
+		roles: ["ADMIN"],
+	},
+	{
 		to: "/appointments",
 		icon: Calendar,
 		label: "Appointments",
