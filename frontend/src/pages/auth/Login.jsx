@@ -128,7 +128,7 @@ const Login = () => {
 							<span>
 								Doctor:{" "}
 								<span className="font-mono text-primary-700">
-									doctor@clinic.com
+									doctor1@clinic.com
 								</span>
 							</span>
 							<span className="font-mono">Doctor1@12345</span>
