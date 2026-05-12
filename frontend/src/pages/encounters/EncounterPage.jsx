@@ -1,13 +1,7 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import {
-	Plus,
-	Search,
-	ChevronDown,
-	ChevronUp,
-	Stethoscope,
-} from "lucide-react";
+import { Plus, Search, Stethoscope } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 import { patientsApi } from "../../api/patients.api";
@@ -20,39 +14,56 @@ const encountersApi = {
 	get: (id) => api.get(`/encounters/${id}`),
 };
 
-// ─── Vitals Input Row ──────────────────────────────────────
-const VitalInput = ({ label, unit, ...props }) => (
+// ─── Reusable components with forwardRef ──────────────────
+
+const VitalInput = forwardRef(({ label, unit, ...rest }, ref) => (
 	<div>
 		<label className="block text-xs text-gray-500 mb-1">{label}</label>
 		<div className="flex items-center gap-1">
 			<input
+				ref={ref}
 				type="number"
 				step="0.1"
 				className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
-				{...props}
+				{...rest}
 			/>
 			{unit && (
 				<span className="text-xs text-gray-400 whitespace-nowrap">{unit}</span>
 			)}
 		</div>
 	</div>
-);
+));
 
-// ─── SOAP Textarea ────────────────────────────────────────
-const SOAPField = ({ label, color, ...props }) => (
+const SOAPField = forwardRef(({ label, color, ...rest }, ref) => (
 	<div>
 		<label className={`block text-sm font-semibold mb-1 ${color}`}>
 			{label}
 		</label>
 		<textarea
+			ref={ref}
 			rows={4}
 			className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-			{...props}
+			{...rest}
 		/>
 	</div>
-);
+));
 
-// ─── New Encounter Form ────────────────────────────────────
+// Helper: remove empty, null, or NaN values from form data
+const cleanFormData = (data) => {
+	const cleaned = {};
+	for (const key in data) {
+		const val = data[key];
+		// skip empty strings, null, undefined, NaN
+		if (val === "" || val === null || val === undefined || Number.isNaN(val))
+			continue;
+		// if it's a number (from input type number), keep as number
+		cleaned[key] =
+			typeof val === "string" && !isNaN(Number(val)) ? Number(val) : val;
+	}
+	return cleaned;
+};
+
+// ─── New Encounter Modal ───────────────────────────────────
 const NewEncounterModal = ({ onClose }) => {
 	const queryClient = useQueryClient();
 	const [patientSearch, setPatientSearch] = useState("");
@@ -79,6 +90,11 @@ const NewEncounterModal = ({ onClose }) => {
 		},
 	});
 
+	const onSubmit = (data) => {
+		const cleanData = cleanFormData(data);
+		mutation.mutate(cleanData);
+	};
+
 	return (
 		<div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
 			<div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl my-6">
@@ -95,10 +111,7 @@ const NewEncounterModal = ({ onClose }) => {
 					</button>
 				</div>
 
-				<form
-					onSubmit={handleSubmit((d) => mutation.mutate(d))}
-					className="p-5 space-y-5"
-				>
+				<form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-5">
 					{/* Patient */}
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
@@ -160,35 +173,27 @@ const NewEncounterModal = ({ onClose }) => {
 							Vitals / जीवन संकेत
 						</h3>
 						<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-							<VitalInput
-								label="Weight"
-								unit="kg"
-								{...register("weightKg", { valueAsNumber: true })}
-							/>
-							<VitalInput
-								label="Height"
-								unit="cm"
-								{...register("heightCm", { valueAsNumber: true })}
-							/>
+							<VitalInput label="Weight" unit="kg" {...register("weightKg")} />
+							<VitalInput label="Height" unit="cm" {...register("heightCm")} />
 							<VitalInput
 								label="Temperature"
 								unit="°C"
-								{...register("temperature", { valueAsNumber: true })}
+								{...register("temperature")}
 							/>
 							<VitalInput
 								label="Pulse Rate"
 								unit="bpm"
-								{...register("pulseRate", { valueAsNumber: true })}
+								{...register("pulseRate")}
 							/>
 							<VitalInput
 								label="Resp. Rate"
 								unit="/min"
-								{...register("respiratoryRate", { valueAsNumber: true })}
+								{...register("respiratoryRate")}
 							/>
 							<VitalInput
 								label="SpO2"
 								unit="%"
-								{...register("oxygenSaturation", { valueAsNumber: true })}
+								{...register("oxygenSaturation")}
 							/>
 							<div className="col-span-2">
 								<label className="block text-xs text-gray-500 mb-1">
@@ -198,18 +203,14 @@ const NewEncounterModal = ({ onClose }) => {
 									<input
 										type="number"
 										placeholder="Systolic"
-										{...register("bloodPressureSystolic", {
-											valueAsNumber: true,
-										})}
+										{...register("bloodPressureSystolic")}
 										className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 									/>
 									<span className="text-gray-400">/</span>
 									<input
 										type="number"
 										placeholder="Diastolic"
-										{...register("bloodPressureDiastolic", {
-											valueAsNumber: true,
-										})}
+										{...register("bloodPressureDiastolic")}
 										className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 									/>
 									<span className="text-xs text-gray-400">mmHg</span>
@@ -218,7 +219,7 @@ const NewEncounterModal = ({ onClose }) => {
 							<VitalInput
 								label="Blood Sugar"
 								unit="mg/dL"
-								{...register("bloodSugar", { valueAsNumber: true })}
+								{...register("bloodSugar")}
 							/>
 						</div>
 					</div>
@@ -232,7 +233,7 @@ const NewEncounterModal = ({ onClose }) => {
 							<SOAPField
 								label="S — Subjective (Chief Complaint & History)"
 								color="text-blue-600"
-								placeholder="Patient's complaint, history of present illness, review of systems..."
+								placeholder="Patient's complaint, history of present illness..."
 								{...register("subjective")}
 							/>
 							<SOAPField
@@ -290,8 +291,10 @@ const NewEncounterModal = ({ onClose }) => {
 	);
 };
 
-// ─── Main ─────────────────────────────────────────────────
+// ─── Main Encounter Page (unchanged) ───────────────────────
 const EncounterPage = () => {
+	// ... (same as your original, no changes needed)
+	// (I'm copying it here for completeness)
 	const [showModal, setShowModal] = useState(false);
 	const [search, setSearch] = useState("");
 

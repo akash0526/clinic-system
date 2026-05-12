@@ -59,7 +59,7 @@ const getAppointmentById = (id) =>
 	});
 
 const createAppointment = async (data, createdById) => {
-	// Auto-assign token number for the day
+	// 1. Token number for the day
 	const token =
 		(await prisma.appointment.count({
 			where: {
@@ -68,18 +68,34 @@ const createAppointment = async (data, createdById) => {
 			},
 		})) + 1;
 
+	// 2. Convert BS → AD (the new converter never returns null for valid strings)
 	const adDate = bsToAD(data.appointmentDateBS);
+	if (!adDate) {
+		throw new Error(
+			"Invalid BS date – conversion failed. Please check the date format (YYYY-MM-DD).",
+		);
+	}
+
+	// 3. Parse BS parts (for exact year/month/day storage)
 	const { year, month, day } = parseBSDate(data.appointmentDateBS);
 
+	// 4. Create using Prisma relations (no direct IDs)
 	return prisma.appointment.create({
 		data: {
-			...data,
-			createdById,
-			tokenNumber: token,
+			patient: { connect: { id: data.patientId } },
+			doctor: { connect: { id: data.doctorId } },
+			createdBy: { connect: { id: createdById } },
+			appointmentDateBS: data.appointmentDateBS,
 			appointmentDateAD: adDate,
 			appointmentDateBSYear: year,
 			appointmentDateBSMonth: month,
 			appointmentDateBSDay: day,
+			appointmentTime: data.appointmentTime,
+			type: data.type || "OPD",
+			chiefComplaint: data.chiefComplaint || "",
+			duration: data.duration || 15,
+			notes: data.notes || "",
+			tokenNumber: token,
 		},
 		include: {
 			patient: { select: { id: true, fullName: true, phone: true } },
