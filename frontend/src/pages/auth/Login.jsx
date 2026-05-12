@@ -131,7 +131,7 @@ const Login = () => {
 									doctor@clinic.com
 								</span>
 							</span>
-							<span className="font-mono">Doctor@12345</span>
+							<span className="font-mono">Doctor1@12345</span>
 						</div>
 
 						<div className="flex justify-between items-center">
