@@ -78,6 +78,21 @@ enum AuditAction {
   VIEW
 }
 
+enum PrescriptionStatus {
+  DRAFT
+  ACTIVE
+  PARTIAL
+  DISPENSED
+  CANCELLED
+}
+
+enum PrescriptionItemStatus {
+  PENDING
+  PARTIAL
+  DISPENSED
+  CANCELLED
+}
+
 // ─────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────
@@ -98,10 +113,12 @@ model User {
   signature     String?   // Base64 signature image path
 
   // Relations
-  doctorAppointments  Appointment[]  @relation("DoctorAppointments")
-  createdAppointments Appointment[]  @relation("CreatedByAppointments")
-  encounters          Encounter[]
-  auditLogs           AuditLog[]
+  doctorAppointments   Appointment[]   @relation("DoctorAppointments")
+  createdAppointments  Appointment[]   @relation("CreatedByAppointments")
+  encounters           Encounter[]
+  authoredPrescriptions Prescription[] @relation("PrescribedByUser")
+  dispenseRecords      DispenseRecord[] @relation("DispensedByUser")
+  auditLogs            AuditLog[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -272,28 +289,87 @@ model Encounter {
 // ─────────────────────────────────────────────
 
 model Prescription {
-  id            String    @id @default(cuid())
+  id                 String              @id @default(cuid())
+  prescriptionNumber String              @unique
 
-  patient       Patient   @relation(fields: [patientId], references: [id])
-  patientId     String
+  patient            Patient             @relation(fields: [patientId], references: [id])
+  patientId          String
 
-  encounter     Encounter @relation(fields: [encounterId], references: [id])
-  encounterId   String
+  encounter          Encounter           @relation(fields: [encounterId], references: [id])
+  encounterId        String
 
-  // Items stored as JSON for flexibility
-  // [{ drugName, genericName, dose, frequency, duration, route, instructions, quantity }]
-  items         Json
+  prescribedBy       User                @relation("PrescribedByUser", fields: [prescribedById], references: [id])
+  prescribedById     String
 
-  notes         String?
-  isDispensed   Boolean   @default(false)
-  dispensedAt   DateTime?
+  status             PrescriptionStatus  @default(ACTIVE)
+  notes              String?
+  prescribedAt       DateTime            @default(now())
+  dispensedAt        DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  items              PrescriptionItem[]
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([patientId])
   @@index([encounterId])
+  @@index([prescribedById])
+  @@index([status])
   @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id                 String                 @id @default(cuid())
+
+  prescription       Prescription           @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescriptionId     String
+
+  inventoryItem      InventoryItem?         @relation(fields: [inventoryItemId], references: [id])
+  inventoryItemId    String?
+
+  drugName           String
+  genericName        String?
+  dose               String?
+  frequency          String?
+  duration           String?
+  route              String?
+  instructions       String?
+  quantityPrescribed Int
+  quantityDispensed  Int                    @default(0)
+  status             PrescriptionItemStatus @default(PENDING)
+  substitutionNotes  String?
+
+  dispenseRecords    DispenseRecord[]
+
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([prescriptionId])
+  @@index([inventoryItemId])
+  @@index([status])
+  @@map("prescription_items")
+}
+
+model DispenseRecord {
+  id                 String            @id @default(cuid())
+
+  prescriptionItem   PrescriptionItem  @relation(fields: [prescriptionItemId], references: [id], onDelete: Cascade)
+  prescriptionItemId String
+
+  inventoryItem      InventoryItem     @relation(fields: [inventoryItemId], references: [id])
+  inventoryItemId    String
+
+  dispensedBy        User?             @relation("DispensedByUser", fields: [dispensedById], references: [id])
+  dispensedById      String?
+
+  quantity           Int
+  notes              String?
+  dispensedAt        DateTime          @default(now())
+
+  @@index([prescriptionItemId])
+  @@index([inventoryItemId])
+  @@index([dispensedById])
+  @@map("dispense_records")
 }
 
 // ─────────────────────────────────────────────
@@ -395,6 +471,8 @@ model InventoryItem {
   sellingPrice    Decimal   @db.Decimal(10, 2)
 
   transactions    StockTransaction[]
+  prescriptionItems PrescriptionItem[]
+  dispenseRecords DispenseRecord[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
