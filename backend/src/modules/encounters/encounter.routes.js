@@ -5,6 +5,7 @@ const { isDoctor, isStaff } = require("../../middleware/rbac");
 const validate = require("../../middleware/validate");
 const svc = require("./encounter.service");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
+const { DATE_ONLY_REGEX } = require("../../utils/date");
 
 router.use(authenticate);
 
@@ -27,7 +28,7 @@ const schema = z.object({
 	diagnoses: z
 		.array(z.object({ code: z.string(), description: z.string() }))
 		.optional(),
-	followUpDateBS: z.string().optional(),
+	followUpDateAD: z.string().regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD").optional().or(z.literal("")),
 	followUpNotes: z.string().optional(),
 });
 

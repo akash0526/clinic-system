@@ -7,10 +7,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ArrowLeft, Save } from "lucide-react";
-import BSDatePicker from "../../components/shared/BSDatePicker";
 import { patientsApi } from "../../api/patients.api";
-import { DatePicker } from "hamro-nepali-patro";
-import "hamro-nepali-patro/dist/styles.css";
+import { toDateInputValue } from "../../utils/date";
 
 // ─── Nepal Address Data ───────────────────────────────────
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
@@ -23,7 +21,7 @@ const formSchema = z.object({
 		required_error: "Gender is required",
 	}),
 	bloodGroup: z.string().optional(),
-	dobBS: z.string().optional(),
+	dobAD: z.string().optional(),
 	phone: z
 		.string()
 		.regex(/^[0-9]{10}$/, "10 digit phone number required")
@@ -177,6 +175,7 @@ const PatientForm = () => {
 			// Ensure arrays are arrays (they might come as strings from API)
 			reset({
 				...existingPatient,
+				dobAD: toDateInputValue(existingPatient.dobAD),
 				allergies: existingPatient.allergies || [],
 				chronicConditions: existingPatient.chronicConditions || [],
 			});
@@ -280,25 +279,10 @@ const PatientForm = () => {
 							</Select>
 						</Field>
 						<Field
-							label="Date of Birth (BS) / जन्म मिति (बि.सं.)"
-							error={errors.dobBS?.message}
+							label="Date of Birth (AD) / जन्म मिति"
+							error={errors.dobAD?.message}
 						>
-							<Controller
-								name="dobBS"
-								control={control}
-								render={({ field }) => (
-									<DatePicker
-										value={field.value}
-										onChange={(val) => field.onChange(val)}
-										calendarType="BS"
-										dateFormat="YYYY-MM-DD"
-										showMonthDropdown
-										showYearDropdown
-										isClearable
-										placeholder="Select date of birth (BS)"
-									/>
-								)}
-							/>
+							<Input type="date" {...register("dobAD")} />
 						</Field>
 
 						{/* Contact Info */}

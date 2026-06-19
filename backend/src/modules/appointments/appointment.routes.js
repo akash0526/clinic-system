@@ -5,13 +5,14 @@ const { isStaff } = require("../../middleware/rbac");
 const validate = require("../../middleware/validate");
 const svc = require("./appointment.service");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
+const { DATE_ONLY_REGEX } = require("../../utils/date");
 
 router.use(authenticate);
 
 const createSchema = z.object({
 	patientId: z.string().cuid(),
 	doctorId: z.string().cuid(),
-	appointmentDateBS: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	appointmentDateAD: z.string().regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD"),
 	appointmentTime: z.string(),
 	type: z.string().default("OPD"),
 	chiefComplaint: z.string().optional(),

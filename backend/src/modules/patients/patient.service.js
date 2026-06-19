@@ -1,39 +1,18 @@
-// FIXED: moved require to top level, not inside function
 const prisma = require("../../config/db");
-const { adToBS, bsToAD, parseBSDate } = require("../../utils/bsDate");
 const { paginate, paginateMeta } = require("../../utils/pagination");
-
-// Load bikram-sambat at module level
-let BikramSambat;
-try {
-	BikramSambat = require("bikram-sambat").BikramSambat;
-} catch {}
+const { parseDateOnly } = require("../../utils/date");
 
 const generatePatientCode = async () => {
-	let year = new Date().getFullYear() + 57; // approximate BS year fallback
-	if (BikramSambat) {
-		try {
-			const bs = BikramSambat.fromAD(new Date());
-			year = bs.year;
-		} catch {}
-	}
-
+	const year = new Date().getFullYear();
 	const count = await prisma.patient.count({
 		where: { patientCode: { startsWith: `P-${year}-` } },
 	});
 	return `P-${year}-${String(count + 1).padStart(5, "0")}`;
 };
 
-const normalizeDOB = (data) => {
-	let dobAD = data.dobAD ? new Date(data.dobAD) : null;
-	let dobBS = data.dobBS || null;
-
-	if (dobBS && !dobAD) dobAD = bsToAD(dobBS);
-	if (dobAD && !dobBS) dobBS = adToBS(dobAD);
-
-	const { year, month, day } = parseBSDate(dobBS);
-	return { dobAD, dobBS, dobBSYear: year, dobBSMonth: month, dobBSDay: day };
-};
+const normalizeDOB = (data) => ({
+	dobAD: data.dobAD ? parseDateOnly(data.dobAD) : null,
+});
 
 const getPatients = async (query) => {
 	const { page, limit, skip } = paginate(query);
@@ -65,7 +44,6 @@ const getPatients = async (query) => {
 				fullName: true,
 				fullNameNe: true,
 				gender: true,
-				dobBS: true,
 				dobAD: true,
 				phone: true,
 				bloodGroup: true,
@@ -85,21 +63,14 @@ const getPatientById = (id) =>
 
 const createPatient = async (data) => {
 	const patientCode = await generatePatientCode();
-	const dobFields = normalizeDOB(data);
-	const { dobAD, dobBS, dobBSYear, dobBSMonth, dobBSDay } = dobFields;
-
-	// Remove raw dob fields from data before spreading
-	const { dobAD: _a, dobBS: _b, ...rest } = data;
+	const { dobAD } = normalizeDOB(data);
+	const { dobAD: _dobAD, ...rest } = data;
 
 	return prisma.patient.create({
 		data: {
 			...rest,
 			patientCode,
 			dobAD,
-			dobBS,
-			dobBSYear,
-			dobBSMonth,
-			dobBSDay,
 		},
 	});
 };
@@ -108,8 +79,10 @@ const updatePatient = async (id, data) => {
 	const old = await prisma.patient.findFirstOrThrow({
 		where: { id, deletedAt: null },
 	});
-	const dobFields = data.dobBS || data.dobAD ? normalizeDOB(data) : {};
-	const { dobAD: _a, dobBS: _b, ...rest } = data;
+	const dobFields = Object.prototype.hasOwnProperty.call(data, "dobAD")
+		? normalizeDOB(data)
+		: {};
+	const { dobAD: _dobAD, ...rest } = data;
 
 	const updated = await prisma.patient.update({
 		where: { id },

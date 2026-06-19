@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Search, Eye, Edit2, UserX } from "lucide-react";
 import { patientsApi } from "../../api/patients.api";
 import useAuthStore from "../../store/authStore";
+import { formatDate } from "../../utils/date";
 
 // ─── Subcomponents ────────────────────────────────────────
 
@@ -160,7 +161,7 @@ const PatientList = () => {
 									"Patient Code",
 									"Name / नाम",
 									"Gender",
-									"DOB (BS)",
+									"Date of Birth",
 									"Phone",
 									"District",
 									"Actions",
@@ -229,7 +230,7 @@ const PatientList = () => {
 										<GenderBadge gender={patient.gender} />
 									</td>
 									<td className="px-4 py-3 text-gray-600">
-										{patient.dobBS || "—"}
+										{patient.dobAD ? formatDate(patient.dobAD) : "—"}
 									</td>
 									<td className="px-4 py-3 text-gray-600">
 										{patient.phone || "—"}

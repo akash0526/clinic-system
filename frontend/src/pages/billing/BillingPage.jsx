@@ -4,6 +4,7 @@ import { Plus, Search, Printer, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 import { patientsApi } from "../../api/patients.api";
+import { formatDate } from "../../utils/date";
 
 const billingApi = {
 	list: (params) => api.get("/billing", { params }),
@@ -454,7 +455,7 @@ const BillingPage = () => {
 								{[
 									"Bill #",
 									"Patient",
-									"Date (BS)",
+									"Date",
 									"Total",
 									"Paid",
 									"Due",
@@ -492,7 +493,7 @@ const BillingPage = () => {
 											{bill.patient?.patientCode}
 										</p>
 									</td>
-									<td className="px-4 py-3 text-gray-600">{bill.billDateBS}</td>
+									<td className="px-4 py-3 text-gray-600">{formatDate(bill.billDateAD)}</td>
 									<td className="px-4 py-3 font-medium">
 										NPR {Number(bill.totalAmount).toLocaleString()}
 									</td>

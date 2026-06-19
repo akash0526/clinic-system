@@ -1,17 +1,21 @@
 const prisma = require("../../config/db");
-const { adToBS, bsToAD, parseBSDate, todayBS } = require("../../utils/bsDate");
 const { paginate, paginateMeta } = require("../../utils/pagination");
+const { parseDateOnly, startOfDay, endOfDay } = require("../../utils/date");
 
 const getAppointments = async (query) => {
 	const { page, limit, skip } = paginate(query);
-	const { search, doctorId, status, today, dateBS } = query;
+	const { search, doctorId, status, today, date, dateAD } = query;
 
-	const bsDate = today ? todayBS() : dateBS;
+	const selectedDate = today ? new Date() : date || dateAD;
+	const dayStart = selectedDate ? startOfDay(selectedDate) : null;
+	const dayEnd = selectedDate ? endOfDay(selectedDate) : null;
 
 	const where = {
 		...(status && { status }),
 		...(doctorId && { doctorId }),
-		...(bsDate && { appointmentDateBS: bsDate }),
+		...(dayStart && dayEnd && {
+			appointmentDateAD: { gte: dayStart, lte: dayEnd },
+		}),
 		...(search && {
 			patient: {
 				OR: [
@@ -28,7 +32,7 @@ const getAppointments = async (query) => {
 			where,
 			skip,
 			take: limit,
-			orderBy: [{ appointmentDateBS: "desc" }, { tokenNumber: "asc" }],
+			orderBy: [{ appointmentDateAD: "desc" }, { tokenNumber: "asc" }],
 			include: {
 				patient: {
 					select: {
@@ -59,37 +63,28 @@ const getAppointmentById = (id) =>
 	});
 
 const createAppointment = async (data, createdById) => {
-	// 1. Token number for the day
+	const appointmentDateAD = parseDateOnly(data.appointmentDateAD);
+	if (!appointmentDateAD) {
+		throw new Error("Invalid appointment date. Please use YYYY-MM-DD.");
+	}
+
+	const dayStart = startOfDay(appointmentDateAD);
+	const dayEnd = endOfDay(appointmentDateAD);
+
 	const token =
 		(await prisma.appointment.count({
 			where: {
 				doctorId: data.doctorId,
-				appointmentDateBS: data.appointmentDateBS,
+				appointmentDateAD: { gte: dayStart, lte: dayEnd },
 			},
 		})) + 1;
 
-	// 2. Convert BS → AD (the new converter never returns null for valid strings)
-	const adDate = bsToAD(data.appointmentDateBS);
-	if (!adDate) {
-		throw new Error(
-			"Invalid BS date – conversion failed. Please check the date format (YYYY-MM-DD).",
-		);
-	}
-
-	// 3. Parse BS parts (for exact year/month/day storage)
-	const { year, month, day } = parseBSDate(data.appointmentDateBS);
-
-	// 4. Create using Prisma relations (no direct IDs)
 	return prisma.appointment.create({
 		data: {
 			patient: { connect: { id: data.patientId } },
 			doctor: { connect: { id: data.doctorId } },
 			createdBy: { connect: { id: createdById } },
-			appointmentDateBS: data.appointmentDateBS,
-			appointmentDateAD: adDate,
-			appointmentDateBSYear: year,
-			appointmentDateBSMonth: month,
-			appointmentDateBSDay: day,
+			appointmentDateAD,
 			appointmentTime: data.appointmentTime,
 			type: data.type || "OPD",
 			chiefComplaint: data.chiefComplaint || "",

@@ -1,11 +1,11 @@
 import { useState, forwardRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Plus, Search, Stethoscope } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 import { patientsApi } from "../../api/patients.api";
-import BSDatePicker from "../../components/shared/BSDatePicker";
+import { formatDate } from "../../utils/date";
 
 const encountersApi = {
 	list: (params) => api.get("/encounters", { params }),
@@ -13,8 +13,6 @@ const encountersApi = {
 	update: (id, d) => api.put(`/encounters/${id}`, d),
 	get: (id) => api.get(`/encounters/${id}`),
 };
-
-// ─── Reusable components with forwardRef ──────────────────
 
 const VitalInput = forwardRef(({ label, unit, ...rest }, ref) => (
 	<div>
@@ -27,18 +25,14 @@ const VitalInput = forwardRef(({ label, unit, ...rest }, ref) => (
 				className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 				{...rest}
 			/>
-			{unit && (
-				<span className="text-xs text-gray-400 whitespace-nowrap">{unit}</span>
-			)}
+			{unit && <span className="text-xs text-gray-400 whitespace-nowrap">{unit}</span>}
 		</div>
 	</div>
 ));
 
 const SOAPField = forwardRef(({ label, color, ...rest }, ref) => (
 	<div>
-		<label className={`block text-sm font-semibold mb-1 ${color}`}>
-			{label}
-		</label>
+		<label className={`block text-sm font-semibold mb-1 ${color}`}>{label}</label>
 		<textarea
 			ref={ref}
 			rows={4}
@@ -48,22 +42,16 @@ const SOAPField = forwardRef(({ label, color, ...rest }, ref) => (
 	</div>
 ));
 
-// Helper: remove empty, null, or NaN values from form data
 const cleanFormData = (data) => {
 	const cleaned = {};
 	for (const key in data) {
 		const val = data[key];
-		// skip empty strings, null, undefined, NaN
-		if (val === "" || val === null || val === undefined || Number.isNaN(val))
-			continue;
-		// if it's a number (from input type number), keep as number
-		cleaned[key] =
-			typeof val === "string" && !isNaN(Number(val)) ? Number(val) : val;
+		if (val === "" || val === null || val === undefined || Number.isNaN(val)) continue;
+		cleaned[key] = typeof val === "string" && !isNaN(Number(val)) ? Number(val) : val;
 	}
 	return cleaned;
 };
 
-// ─── New Encounter Modal ───────────────────────────────────
 const NewEncounterModal = ({ onClose }) => {
 	const queryClient = useQueryClient();
 	const [patientSearch, setPatientSearch] = useState("");
@@ -71,18 +59,14 @@ const NewEncounterModal = ({ onClose }) => {
 
 	const { data: patients } = useQuery({
 		queryKey: ["patient-search-enc", patientSearch],
-		queryFn: () =>
-			patientsApi
-				.list({ search: patientSearch, limit: 5 })
-				.then((r) => r.data.data),
+		queryFn: () => patientsApi.list({ search: patientSearch, limit: 5 }).then((r) => r.data.data),
 		enabled: patientSearch.length > 1,
 	});
 
-	const { register, control, handleSubmit } = useForm();
+	const { register, handleSubmit } = useForm();
 
 	const mutation = useMutation({
-		mutationFn: (data) =>
-			encountersApi.create({ ...data, patientId: selectedPatient.id }),
+		mutationFn: (data) => encountersApi.create({ ...data, patientId: selectedPatient.id }),
 		onSuccess: () => {
 			toast.success("Encounter saved!");
 			queryClient.invalidateQueries(["encounters"]);
@@ -90,48 +74,30 @@ const NewEncounterModal = ({ onClose }) => {
 		},
 	});
 
-	const onSubmit = (data) => {
-		const cleanData = cleanFormData(data);
-		mutation.mutate(cleanData);
-	};
+	const onSubmit = (data) => mutation.mutate(cleanFormData(data));
 
 	return (
 		<div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
 			<div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl my-6">
 				<div className="flex items-center justify-between p-5 border-b">
 					<h2 className="text-lg font-semibold flex items-center gap-2">
-						<Stethoscope size={18} className="text-primary-600" /> New Encounter
-						/ SOAP Note
+						<Stethoscope size={18} className="text-primary-600" /> New Encounter / SOAP Note
 					</h2>
-					<button
-						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 text-xl"
-					>
+					<button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">
 						×
 					</button>
 				</div>
 
 				<form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-5">
-					{/* Patient */}
 					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Patient *
-						</label>
+						<label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
 						{selectedPatient ? (
 							<div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
 								<div>
-									<p className="text-sm font-medium">
-										{selectedPatient.fullName}
-									</p>
-									<p className="text-xs text-gray-500">
-										{selectedPatient.patientCode}
-									</p>
+									<p className="text-sm font-medium">{selectedPatient.fullName}</p>
+									<p className="text-xs text-gray-500">{selectedPatient.patientCode}</p>
 								</div>
-								<button
-									type="button"
-									onClick={() => setSelectedPatient(null)}
-									className="text-xs text-red-500"
-								>
+								<button type="button" onClick={() => setSelectedPatient(null)} className="text-xs text-red-500">
 									Change
 								</button>
 							</div>
@@ -156,9 +122,7 @@ const NewEncounterModal = ({ onClose }) => {
 												className="flex flex-col w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
 											>
 												<span className="font-medium">{p.fullName}</span>
-												<span className="text-xs text-gray-400">
-													{p.patientCode} · {p.phone}
-												</span>
+												<span className="text-xs text-gray-400">{p.patientCode} · {p.phone}</span>
 											</button>
 										))}
 									</div>
@@ -167,38 +131,17 @@ const NewEncounterModal = ({ onClose }) => {
 						)}
 					</div>
 
-					{/* Vitals */}
 					<div>
-						<h3 className="text-sm font-semibold text-gray-600 mb-3 pb-1 border-b">
-							Vitals / जीवन संकेत
-						</h3>
+						<h3 className="text-sm font-semibold text-gray-600 mb-3 pb-1 border-b">Vitals / जीवन संकेत</h3>
 						<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
 							<VitalInput label="Weight" unit="kg" {...register("weightKg")} />
 							<VitalInput label="Height" unit="cm" {...register("heightCm")} />
-							<VitalInput
-								label="Temperature"
-								unit="°C"
-								{...register("temperature")}
-							/>
-							<VitalInput
-								label="Pulse Rate"
-								unit="bpm"
-								{...register("pulseRate")}
-							/>
-							<VitalInput
-								label="Resp. Rate"
-								unit="/min"
-								{...register("respiratoryRate")}
-							/>
-							<VitalInput
-								label="SpO2"
-								unit="%"
-								{...register("oxygenSaturation")}
-							/>
+							<VitalInput label="Temperature" unit="°C" {...register("temperature")} />
+							<VitalInput label="Pulse Rate" unit="bpm" {...register("pulseRate")} />
+							<VitalInput label="Resp. Rate" unit="/min" {...register("respiratoryRate")} />
+							<VitalInput label="SpO2" unit="%" {...register("oxygenSaturation")} />
 							<div className="col-span-2">
-								<label className="block text-xs text-gray-500 mb-1">
-									Blood Pressure
-								</label>
+								<label className="block text-xs text-gray-500 mb-1">Blood Pressure</label>
 								<div className="flex items-center gap-2">
 									<input
 										type="number"
@@ -216,19 +159,12 @@ const NewEncounterModal = ({ onClose }) => {
 									<span className="text-xs text-gray-400">mmHg</span>
 								</div>
 							</div>
-							<VitalInput
-								label="Blood Sugar"
-								unit="mg/dL"
-								{...register("bloodSugar")}
-							/>
+							<VitalInput label="Blood Sugar" unit="mg/dL" {...register("bloodSugar")} />
 						</div>
 					</div>
 
-					{/* SOAP */}
 					<div>
-						<h3 className="text-sm font-semibold text-gray-600 mb-3 pb-1 border-b">
-							SOAP Notes
-						</h3>
+						<h3 className="text-sm font-semibold text-gray-600 mb-3 pb-1 border-b">SOAP Notes</h3>
 						<div className="space-y-3">
 							<SOAPField
 								label="S — Subjective (Chief Complaint & History)"
@@ -257,15 +193,12 @@ const NewEncounterModal = ({ onClose }) => {
 						</div>
 					</div>
 
-					{/* Follow up */}
 					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Follow-up Date (BS)
-						</label>
-						<Controller
-							name="followUpDateBS"
-							control={control}
-							render={({ field }) => <BSDatePicker field={field} />}
+						<label className="block text-sm font-medium text-gray-700 mb-1">Follow-up Date</label>
+						<input
+							type="date"
+							{...register("followUpDateAD")}
+							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
 						/>
 					</div>
 
@@ -291,10 +224,7 @@ const NewEncounterModal = ({ onClose }) => {
 	);
 };
 
-// ─── Main Encounter Page (unchanged) ───────────────────────
 const EncounterPage = () => {
-	// ... (same as your original, no changes needed)
-	// (I'm copying it here for completeness)
 	const [showModal, setShowModal] = useState(false);
 	const [search, setSearch] = useState("");
 
@@ -318,10 +248,7 @@ const EncounterPage = () => {
 			<div className="bg-white rounded-xl border border-gray-200">
 				<div className="p-4 border-b">
 					<div className="relative max-w-sm">
-						<Search
-							size={15}
-							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-						/>
+						<Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
 						<input
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
@@ -335,19 +262,8 @@ const EncounterPage = () => {
 					<table className="w-full text-sm">
 						<thead className="bg-gray-50 border-b">
 							<tr>
-								{[
-									"Patient",
-									"Doctor",
-									"Visit Date (BS)",
-									"BP",
-									"Pulse",
-									"Assessment",
-									"Prescriptions",
-								].map((h) => (
-									<th
-										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase"
-									>
+								{["Patient", "Doctor", "Visit Date", "BP", "Pulse", "Assessment", "Prescriptions"].map((h) => (
+									<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
 										{h}
 									</th>
 								))}
@@ -356,10 +272,7 @@ const EncounterPage = () => {
 						<tbody className="divide-y divide-gray-100">
 							{isLoading && (
 								<tr>
-									<td
-										colSpan={7}
-										className="px-4 py-10 text-center text-gray-400"
-									>
+									<td colSpan={7} className="px-4 py-10 text-center text-gray-400">
 										Loading...
 									</td>
 								</tr>
@@ -368,25 +281,15 @@ const EncounterPage = () => {
 								<tr key={enc.id} className="hover:bg-gray-50">
 									<td className="px-4 py-3">
 										<p className="font-medium">{enc.patient?.fullName}</p>
-										<p className="text-xs text-gray-400">
-											{enc.patient?.patientCode}
-										</p>
+										<p className="text-xs text-gray-400">{enc.patient?.patientCode}</p>
 									</td>
+									<td className="px-4 py-3 text-gray-600">Dr. {enc.doctor?.fullName}</td>
+									<td className="px-4 py-3 text-gray-600">{formatDate(enc.visitDateAD)}</td>
 									<td className="px-4 py-3 text-gray-600">
-										Dr. {enc.doctor?.fullName}
+										{enc.bloodPressureSystolic ? `${enc.bloodPressureSystolic}/${enc.bloodPressureDiastolic}` : "—"}
 									</td>
-									<td className="px-4 py-3 text-gray-600">{enc.visitDateBS}</td>
-									<td className="px-4 py-3 text-gray-600">
-										{enc.bloodPressureSystolic
-											? `${enc.bloodPressureSystolic}/${enc.bloodPressureDiastolic}`
-											: "—"}
-									</td>
-									<td className="px-4 py-3 text-gray-600">
-										{enc.pulseRate ? `${enc.pulseRate} bpm` : "—"}
-									</td>
-									<td className="px-4 py-3 text-gray-600 max-w-xs truncate">
-										{enc.assessment || "—"}
-									</td>
+									<td className="px-4 py-3 text-gray-600">{enc.pulseRate ? `${enc.pulseRate} bpm` : "—"}</td>
+									<td className="px-4 py-3 text-gray-600 max-w-xs truncate">{enc.assessment || "—"}</td>
 									<td className="px-4 py-3">
 										<span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
 											{enc.prescriptions?.length ?? 0} Rx

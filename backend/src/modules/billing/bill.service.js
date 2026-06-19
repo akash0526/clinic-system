@@ -1,19 +1,15 @@
 const prisma = require("../../config/db");
-const { todayBS } = require("../../utils/bsDate");
 const { paginate, paginateMeta } = require("../../utils/pagination");
 
 const generateBillNumber = async () => {
 	const count = await prisma.bill.count();
-	const { BikramSambat } = require("bikram-sambat");
-	const year = BikramSambat.fromAD(new Date()).year;
+	const year = new Date().getFullYear();
 	return `INV-${year}-${String(count + 1).padStart(5, "0")}`;
 };
 
 const createBill = async (data) => {
 	const billNumber = await generateBillNumber();
-	const billDateBS = todayBS();
 
-	// Calculate totals
 	const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 	const discountAmount =
 		data.discountType === "PERCENT"
@@ -30,7 +26,6 @@ const createBill = async (data) => {
 	return prisma.bill.create({
 		data: {
 			billNumber,
-			billDateBS,
 			billDateAD: new Date(),
 			patientId: data.patientId,
 			encounterId: data.encounterId,

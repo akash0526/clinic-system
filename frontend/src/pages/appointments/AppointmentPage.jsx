@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Plus, Search, Calendar, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 import { appointmentsApi } from "../../api/appointments.api";
 import { patientsApi } from "../../api/patients.api";
-import BSDatePicker from "../../components/shared/BSDatePicker";
-import { todayBSString } from "../../utils/bsDate";
+import { todayDateInputValue, formatDate } from "../../utils/date";
 
-// ─── Status badge ─────────────────────────────────────────
 const StatusBadge = ({ status }) => {
 	const map = {
 		SCHEDULED: "bg-blue-100 text-blue-700",
@@ -19,15 +17,12 @@ const StatusBadge = ({ status }) => {
 		NO_SHOW: "bg-orange-100 text-orange-600",
 	};
 	return (
-		<span
-			className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status]}`}
-		>
+		<span className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status]}`}>
 			{status}
 		</span>
 	);
 };
 
-// ─── New Appointment Modal ─────────────────────────────────
 const NewAppointmentModal = ({ onClose }) => {
 	const queryClient = useQueryClient();
 
@@ -42,20 +37,17 @@ const NewAppointmentModal = ({ onClose }) => {
 	const { data: patients } = useQuery({
 		queryKey: ["patient-search", patientSearch],
 		queryFn: () =>
-			patientsApi
-				.list({ search: patientSearch, limit: 5 })
-				.then((r) => r.data.data),
+			patientsApi.list({ search: patientSearch, limit: 5 }).then((r) => r.data.data),
 		enabled: patientSearch.length > 1,
 	});
 
 	const {
 		register,
-		control,
 		handleSubmit,
 		formState: { errors },
 	} = useForm({
 		defaultValues: {
-			appointmentDateBS: todayBSString(),
+			appointmentDateAD: todayDateInputValue(),
 			type: "OPD",
 			duration: 15,
 		},
@@ -75,32 +67,21 @@ const NewAppointmentModal = ({ onClose }) => {
 		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
 			<div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
 				<div className="flex items-center justify-between p-5 border-b">
-					<h2 className="text-lg font-semibold">
-						New Appointment / नयाँ अपोइन्टमेन्ट
-					</h2>
-					<button
-						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 text-xl"
-					>
+					<h2 className="text-lg font-semibold">New Appointment</h2>
+					<button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">
 						×
 					</button>
 				</div>
 
-				<form
-					onSubmit={handleSubmit((d) => mutation.mutate(d))}
-					className="p-5 space-y-4"
-				>
-					{/* Patient search */}
+				<form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-5 space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Patient / बिरामी <span className="text-red-500">*</span>
+							Patient <span className="text-red-500">*</span>
 						</label>
 						{selectedPatient ? (
 							<div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
 								<div>
-									<p className="text-sm font-medium">
-										{selectedPatient.fullName}
-									</p>
+									<p className="text-sm font-medium">{selectedPatient.fullName}</p>
 									<p className="text-xs text-gray-500">
 										{selectedPatient.patientCode} · {selectedPatient.phone}
 									</p>
@@ -147,7 +128,6 @@ const NewAppointmentModal = ({ onClose }) => {
 						)}
 					</div>
 
-					{/* Doctor */}
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
 							Doctor <span className="text-red-500">*</span>
@@ -163,23 +143,20 @@ const NewAppointmentModal = ({ onClose }) => {
 								</option>
 							))}
 						</select>
+						{errors.doctorId && <p className="mt-1 text-xs text-red-500">Doctor is required</p>}
 					</div>
 
-					{/* Date BS */}
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Date (BS) <span className="text-red-500">*</span>
+							Appointment Date <span className="text-red-500">*</span>
 						</label>
-						<Controller
-							name="appointmentDateBS"
-							control={control}
-							render={({ field }) => (
-								<BSDatePicker field={field} language="ne" />
-							)}
+						<input
+							type="date"
+							{...register("appointmentDateAD", { required: true })}
+							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
 						/>
 					</div>
 
-					{/* Time & Type */}
 					<div className="grid grid-cols-2 gap-3">
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-1">
@@ -192,9 +169,7 @@ const NewAppointmentModal = ({ onClose }) => {
 							/>
 						</div>
 						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">
-								Type
-							</label>
+							<label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
 							<select
 								{...register("type")}
 								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -206,11 +181,8 @@ const NewAppointmentModal = ({ onClose }) => {
 						</div>
 					</div>
 
-					{/* Chief complaint */}
 					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Chief Complaint
-						</label>
+						<label className="block text-sm font-medium text-gray-700 mb-1">Chief Complaint</label>
 						<textarea
 							{...register("chiefComplaint")}
 							rows={2}
@@ -241,17 +213,15 @@ const NewAppointmentModal = ({ onClose }) => {
 	);
 };
 
-// ─── Main Page ─────────────────────────────────────────────
 const AppointmentPage = () => {
 	const [showModal, setShowModal] = useState(false);
-	const [filterDate, setFilterDate] = useState(todayBSString());
+	const [filterDate, setFilterDate] = useState(todayDateInputValue());
 	const [search, setSearch] = useState("");
 	const queryClient = useQueryClient();
 
 	const { data, isLoading } = useQuery({
 		queryKey: ["appointments", { filterDate, search }],
-		queryFn: () =>
-			appointmentsApi.list({ dateBS: filterDate, search }).then((r) => r.data),
+		queryFn: () => appointmentsApi.list({ date: filterDate, search }).then((r) => r.data),
 	});
 
 	const statusMutation = useMutation({
@@ -267,9 +237,7 @@ const AppointmentPage = () => {
 			<div className="flex items-center justify-between mb-6">
 				<div>
 					<h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-					<p className="text-sm text-gray-500">
-						{data?.meta?.total ?? 0} appointments
-					</p>
+					<p className="text-sm text-gray-500">{data?.meta?.total ?? 0} appointments</p>
 				</div>
 				<button
 					onClick={() => setShowModal(true)}
@@ -279,14 +247,10 @@ const AppointmentPage = () => {
 				</button>
 			</div>
 
-			{/* Filters */}
 			<div className="bg-white rounded-xl border border-gray-200 mb-4">
 				<div className="flex flex-wrap gap-3 p-4 items-center">
 					<div className="relative flex-1 min-w-48">
-						<Search
-							size={15}
-							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-						/>
+						<Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
 						<input
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
@@ -298,16 +262,13 @@ const AppointmentPage = () => {
 						<Calendar size={15} className="text-gray-400" />
 						<input
 							type="date"
-							onChange={(e) => {
-								// Convert to BS or use AD directly
-								setFilterDate(e.target.value);
-							}}
+							value={filterDate}
+							onChange={(e) => setFilterDate(e.target.value)}
 							className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
 						/>
 					</div>
 				</div>
 
-				{/* Table */}
 				<div className="overflow-x-auto">
 					<table className="w-full text-sm">
 						<thead className="bg-gray-50 border-y border-gray-200">
@@ -316,16 +277,14 @@ const AppointmentPage = () => {
 									"Token",
 									"Patient",
 									"Doctor",
+									"Date",
 									"Time",
 									"Type",
 									"Complaint",
 									"Status",
 									"Actions",
 								].map((h) => (
-									<th
-										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase"
-									>
+									<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
 										{h}
 									</th>
 								))}
@@ -334,20 +293,14 @@ const AppointmentPage = () => {
 						<tbody className="divide-y divide-gray-100">
 							{isLoading && (
 								<tr>
-									<td
-										colSpan={8}
-										className="px-4 py-10 text-center text-gray-400"
-									>
+									<td colSpan={9} className="px-4 py-10 text-center text-gray-400">
 										Loading...
 									</td>
 								</tr>
 							)}
 							{!isLoading && !data?.data?.length && (
 								<tr>
-									<td
-										colSpan={8}
-										className="px-4 py-10 text-center text-gray-400"
-									>
+									<td colSpan={9} className="px-4 py-10 text-center text-gray-400">
 										No appointments found
 									</td>
 								</tr>
@@ -360,16 +313,11 @@ const AppointmentPage = () => {
 										</span>
 									</td>
 									<td className="px-4 py-3">
-										<p className="font-medium text-gray-900">
-											{a.patient?.fullName}
-										</p>
-										<p className="text-xs text-gray-400">
-											{a.patient?.patientCode}
-										</p>
+										<p className="font-medium text-gray-900">{a.patient?.fullName}</p>
+										<p className="text-xs text-gray-400">{a.patient?.patientCode}</p>
 									</td>
-									<td className="px-4 py-3 text-gray-600">
-										Dr. {a.doctor?.fullName}
-									</td>
+									<td className="px-4 py-3 text-gray-600">Dr. {a.doctor?.fullName}</td>
+									<td className="px-4 py-3 text-gray-600">{formatDate(a.appointmentDateAD)}</td>
 									<td className="px-4 py-3">
 										<div className="flex items-center gap-1 text-gray-600">
 											<Clock size={13} />
@@ -377,31 +325,17 @@ const AppointmentPage = () => {
 										</div>
 									</td>
 									<td className="px-4 py-3 text-gray-600">{a.type}</td>
-									<td className="px-4 py-3 text-gray-500 max-w-xs truncate">
-										{a.chiefComplaint || "—"}
-									</td>
+									<td className="px-4 py-3 text-gray-500 max-w-xs truncate">{a.chiefComplaint || "—"}</td>
 									<td className="px-4 py-3">
 										<StatusBadge status={a.status} />
 									</td>
 									<td className="px-4 py-3">
 										<select
 											value={a.status}
-											onChange={(e) =>
-												statusMutation.mutate({
-													id: a.id,
-													status: e.target.value,
-												})
-											}
+											onChange={(e) => statusMutation.mutate({ id: a.id, status: e.target.value })}
 											className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none"
 										>
-											{[
-												"SCHEDULED",
-												"CONFIRMED",
-												"IN_PROGRESS",
-												"COMPLETED",
-												"CANCELLED",
-												"NO_SHOW",
-											].map((s) => (
+											{["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"].map((s) => (
 												<option key={s} value={s}>
 													{s}
 												</option>

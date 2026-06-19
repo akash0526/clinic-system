@@ -50,10 +50,6 @@ CREATE TABLE "patients" (
     "gender" "Gender" NOT NULL,
     "bloodGroup" TEXT,
     "dobAD" TIMESTAMP(3),
-    "dobBS" TEXT,
-    "dobBSYear" INTEGER,
-    "dobBSMonth" INTEGER,
-    "dobBSDay" INTEGER,
     "phone" TEXT,
     "phone2" TEXT,
     "email" TEXT,
@@ -85,10 +81,6 @@ CREATE TABLE "appointments" (
     "doctorId" TEXT NOT NULL,
     "createdById" TEXT NOT NULL,
     "appointmentDateAD" TIMESTAMP(3) NOT NULL,
-    "appointmentDateBS" TEXT NOT NULL,
-    "appointmentDateBSYear" INTEGER NOT NULL,
-    "appointmentDateBSMonth" INTEGER NOT NULL,
-    "appointmentDateBSDay" INTEGER NOT NULL,
     "appointmentTime" TEXT NOT NULL,
     "duration" INTEGER NOT NULL DEFAULT 15,
     "status" "AppointmentStatus" NOT NULL DEFAULT 'SCHEDULED',
@@ -109,7 +101,6 @@ CREATE TABLE "encounters" (
     "doctorId" TEXT NOT NULL,
     "appointmentId" TEXT,
     "visitDateAD" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "visitDateBS" TEXT NOT NULL,
     "weightKg" DOUBLE PRECISION,
     "heightCm" DOUBLE PRECISION,
     "bmi" DOUBLE PRECISION,
@@ -126,7 +117,6 @@ CREATE TABLE "encounters" (
     "plan" TEXT,
     "diagnoses" JSONB,
     "followUpDateAD" TIMESTAMP(3),
-    "followUpDateBS" TEXT,
     "followUpNotes" TEXT,
     "isAdmitted" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -157,7 +147,6 @@ CREATE TABLE "bills" (
     "patientId" TEXT NOT NULL,
     "encounterId" TEXT,
     "billDateAD" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "billDateBS" TEXT NOT NULL,
     "subtotal" DECIMAL(10,2) NOT NULL,
     "discountType" TEXT,
     "discountValue" DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -214,7 +203,6 @@ CREATE TABLE "inventory_items" (
     "manufacturer" TEXT,
     "batchNumber" TEXT,
     "expiryDateAD" TIMESTAMP(3),
-    "expiryDateBS" TEXT,
     "currentStock" INTEGER NOT NULL DEFAULT 0,
     "minimumStock" INTEGER NOT NULL DEFAULT 10,
     "purchasePrice" DECIMAL(10,2) NOT NULL,
@@ -339,16 +327,13 @@ CREATE INDEX "patients_fullName_idx" ON "patients"("fullName");
 CREATE INDEX "patients_phone_idx" ON "patients"("phone");
 
 -- CreateIndex
-CREATE INDEX "patients_dobBSYear_idx" ON "patients"("dobBSYear");
-
--- CreateIndex
 CREATE INDEX "appointments_patientId_idx" ON "appointments"("patientId");
 
 -- CreateIndex
 CREATE INDEX "appointments_doctorId_idx" ON "appointments"("doctorId");
 
 -- CreateIndex
-CREATE INDEX "appointments_appointmentDateBSYear_appointmentDateBSMonth_a_idx" ON "appointments"("appointmentDateBSYear", "appointmentDateBSMonth", "appointmentDateBSDay");
+CREATE INDEX "appointments_appointmentDateAD_idx" ON "appointments"("appointmentDateAD");
 
 -- CreateIndex
 CREATE INDEX "appointments_status_idx" ON "appointments"("status");
@@ -481,3 +466,4 @@ ALTER TABLE "lab_results" ADD CONSTRAINT "lab_results_testId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

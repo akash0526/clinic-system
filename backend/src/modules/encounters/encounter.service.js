@@ -1,6 +1,6 @@
 const prisma = require("../../config/db");
-const { adToBS, todayBS } = require("../../utils/bsDate");
 const { paginate, paginateMeta } = require("../../utils/pagination");
+const { parseDateOnly } = require("../../utils/date");
 
 const getEncounters = async (query) => {
 	const { page, limit, skip } = paginate(query);
@@ -32,15 +32,19 @@ const getEncounters = async (query) => {
 	return { data, meta: paginateMeta(total, page, limit) };
 };
 
-const createEncounter = async (data, doctorId) => {
-	const visitDateBS = adToBS(new Date());
+const normalizeEncounterDates = (data = {}) => ({
+	...data,
+	...(Object.prototype.hasOwnProperty.call(data, "followUpDateAD") && {
+		followUpDateAD: data.followUpDateAD ? parseDateOnly(data.followUpDateAD) : null,
+	}),
+});
 
+const createEncounter = async (data, doctorId) => {
 	return prisma.encounter.create({
 		data: {
-			...data,
+			...normalizeEncounterDates(data),
 			doctorId,
 			visitDateAD: new Date(),
-			visitDateBS,
 		},
 		include: {
 			patient: { select: { id: true, fullName: true, patientCode: true } },
@@ -50,7 +54,7 @@ const createEncounter = async (data, doctorId) => {
 };
 
 const updateEncounter = (id, data) =>
-	prisma.encounter.update({ where: { id }, data });
+	prisma.encounter.update({ where: { id }, data: normalizeEncounterDates(data) });
 
 const getEncounterById = (id) =>
 	prisma.encounter.findUniqueOrThrow({
