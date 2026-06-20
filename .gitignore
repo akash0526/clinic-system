@@ -8,7 +8,7 @@ build/
 .env
 .env.local
 .env.*.local
-
+.vite
 # Logs
 *.log
 npm-debug.log*
