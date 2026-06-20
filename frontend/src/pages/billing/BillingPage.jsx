@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { billingApi } from "../../api/billing.api";
 import { patientsApi } from "../../api/patients.api";
 import { formatDate } from "../../utils/date";
+import { printInvoice } from "../../utils/printInvoice";
 
 const BILL_ITEMS_DEFAULTS = [
 	{
@@ -650,8 +651,8 @@ const BillingPage = () => {
 													</button>
 												)}
 											<button
-												onClick={() => window.print()}
-												title="Print"
+												onClick={() => printInvoice(bill)}
+												title="Print invoice"
 												className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
 											>
 												<Printer size={14} />
