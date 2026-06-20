@@ -25,10 +25,9 @@ const dashboardRoutes = require("./modules/dashboard/dashboard.routes");
 
 const app = express();
 
-// If you later run behind a reverse proxy (nginx, etc.), enable this so req.ip
-// and rate limiting use the real client IP. Safe to leave commented for a
-// direct Node setup (running `node server.js` without a proxy).
-// app.set("trust proxy", 1);
+// Render/Vercel/nginx put a proxy in front of the app. Trust the first proxy
+// so req.ip and express-rate-limit see the real client IP.
+app.set("trust proxy", 1);
 
 // ── Security & Parsing ────────────────────────────────────
 // CSP enabled in production (defense-in-depth against XSS).
