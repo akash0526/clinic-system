@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Printer, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
@@ -32,6 +32,111 @@ const StatusBadge = ({ status }) => {
 		>
 			{status}
 		</span>
+	);
+};
+
+// ─── Inventory item picker (auto-fills price + name, no stock deduction) ──
+// Searchable picker that merges INVENTORY items + LAB tests into one dropdown.
+// Auto-fills description, unitPrice, category. Does NOT touch stock.
+const ItemPicker = ({ value, onPick }) => {
+	const [open, setOpen] = useState(false);
+	const [term, setTerm] = useState("");
+	const [results, setResults] = useState([]);
+
+	useEffect(() => {
+		if (term.length < 2) {
+			setResults([]);
+			return;
+		}
+		let active = true;
+		const t = setTimeout(async () => {
+			try {
+				const [invRes, labRes] = await Promise.all([
+					billingApi
+						.searchInventory(term)
+						.catch(() => ({ data: { data: [] } })),
+					billingApi.searchLabTests().catch(() => ({ data: { data: [] } })),
+				]);
+
+				// Normalize inventory items
+				const inv = (invRes.data.data || []).map((it) => ({
+					key: `inv-${it.id}`,
+					name: it.name,
+					price: Number(it.sellingPrice),
+					category: it.category === "MEDICINE" ? "MEDICINE" : "OTHER",
+					meta: `${it.itemCode} · stock: ${it.currentStock} ${it.unit}`,
+					kind: "INVENTORY",
+				}));
+
+				// Normalize lab tests + filter by the search term on the frontend
+				const lab = (labRes.data.data || [])
+					.filter((t) => t.testName.toLowerCase().includes(term.toLowerCase()))
+					.map((t) => ({
+						key: `lab-${t.id}`,
+						name: t.testName,
+						price: Number(t.price),
+						category: "LAB",
+						meta: `Lab · ${t.testCode}`,
+						kind: "LAB",
+					}));
+
+				if (active) setResults([...lab, ...inv]);
+			} catch {
+				if (active) setResults([]);
+			}
+		}, 250);
+		return () => {
+			active = false;
+			clearTimeout(t);
+		};
+	}, [term]);
+
+	return (
+		<div className="relative">
+			<input
+				value={open ? term : value}
+				onChange={(e) => {
+					setTerm(e.target.value);
+					setOpen(true);
+				}}
+				onFocus={() => {
+					setOpen(true);
+					setTerm("");
+				}}
+				onBlur={() => setTimeout(() => setOpen(false), 150)}
+				placeholder="Type item / lab test / free text..."
+				className="w-full border-0 focus:outline-none text-sm"
+			/>
+			{open && results.length > 0 && (
+				<div className="absolute top-full left-0 z-20 mt-1 w-72 max-h-56 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+					{results.map((it) => (
+						<button
+							key={it.key}
+							type="button"
+							onMouseDown={(e) => {
+								e.preventDefault();
+								onPick(it);
+								setOpen(false);
+							}}
+							className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
+						>
+							<span className="flex flex-col">
+								<span className="font-medium">
+									{it.kind === "LAB" && (
+										<span className="text-purple-600 text-xs mr-1">[Lab]</span>
+									)}
+									{it.name}
+								</span>
+								<span className="text-xs text-gray-400">{it.meta}</span>
+							</span>
+							<span className="text-xs font-medium text-primary-600">
+								NPR {it.price.toLocaleString()}
+							</span>
+						</button>
+					))}
+				</div>
+			)}
+		</div>
 	);
 };
 
@@ -183,7 +288,7 @@ const NewBillModal = ({ onClose }) => {
 								<Plus size={12} /> Add Item
 							</button>
 						</div>
-						<div className="border border-gray-200 rounded-lg overflow-hidden">
+						<div className="border border-gray-200 rounded-lg overflow-visible">
 							<table className="w-full text-sm">
 								<thead className="bg-gray-50">
 									<tr>
@@ -209,12 +314,13 @@ const NewBillModal = ({ onClose }) => {
 									{items.map((item, idx) => (
 										<tr key={idx}>
 											<td className="px-2 py-1.5">
-												<input
+												<ItemPicker
 													value={item.description}
-													onChange={(e) =>
-														updateItem(idx, "description", e.target.value)
-													}
-													className="w-full border-0 focus:outline-none text-sm"
+													onPick={(it) => {
+														updateItem(idx, "description", it.name);
+														updateItem(idx, "unitPrice", it.price);
+														updateItem(idx, "category", it.category);
+													}}
 												/>
 											</td>
 											<td className="px-2 py-1.5">
