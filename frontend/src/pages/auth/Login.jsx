@@ -109,12 +109,11 @@ const Login = () => {
 						</button>
 					</form>
 
-					{/* Updated Demo Credentials Section */}
-					<div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-1">
-						<p className="font-medium text-gray-600 mb-2">Demo Credentials:</p>
+					{/* Demo Credentials */}
+					<div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-2">
+						<p className="font-medium text-gray-600">Demo Credentials:</p>
 
-						{/* This matches the email and password from your seed.js exactly */}
-						<div className="flex justify-between items-center border-b border-gray-200 pb-1 mb-1">
+						<div className="flex justify-between items-center border-b border-gray-200 pb-1">
 							<span>
 								Admin:{" "}
 								<span className="font-mono text-primary-700">
@@ -124,17 +123,17 @@ const Login = () => {
 							<span className="font-mono">Admin@12345</span>
 						</div>
 
-						<div className="flex justify-between items-center border-b border-gray-200 pb-1 mb-1">
+						<div className="flex justify-between items-center border-b border-gray-200 pb-1">
 							<span>
 								Doctor:{" "}
 								<span className="font-mono text-primary-700">
 									doctor1@clinic.com
 								</span>
 							</span>
-							<span className="font-mono">Doctor1@12345</span>
+							<span className="font-mono">Doctor@12345</span>
 						</div>
 
-						<div className="flex justify-between items-center">
+						<div className="flex justify-between items-center border-b border-gray-200 pb-1">
 							<span>
 								Reception:{" "}
 								<span className="font-mono text-primary-700">
@@ -142,6 +141,16 @@ const Login = () => {
 								</span>
 							</span>
 							<span className="font-mono">Staff@12345</span>
+						</div>
+
+						<div className="flex justify-between items-center">
+							<span>
+								Lab Tech:{" "}
+								<span className="font-mono text-primary-700">
+									labtech@clinic.com
+								</span>
+							</span>
+							<span className="font-mono">Lab@12345</span>
 						</div>
 					</div>
 				</div>

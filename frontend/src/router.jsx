@@ -13,12 +13,18 @@ import LabPage from "./pages/lab/LabPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import useAuthStore from "./store/authStore";
 import UsersPage from "./pages/users/UsersPage";
+import RoleGuard from "./components/shared/RoleGuard";
+
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
 	const { isAuthenticated } = useAuthStore();
 	if (!isAuthenticated) return <Navigate to="/login" replace />;
 	return children;
 };
+
+const withRoles = (element, allowedRoles) => (
+	<RoleGuard allowedRoles={allowedRoles}>{element}</RoleGuard>
+);
 
 export const router = createBrowserRouter([
 	{
@@ -35,17 +41,70 @@ export const router = createBrowserRouter([
 		children: [
 			{ index: true, element: <Navigate to="/dashboard" replace /> },
 			{ path: "dashboard", element: <Dashboard /> },
-			{ path: "patients", element: <PatientList /> },
-			{ path: "patients/new", element: <PatientForm /> },
-			{ path: "patients/:id", element: <PatientDetail /> },
-			{ path: "patients/:id/edit", element: <PatientForm /> },
-			{ path: "appointments", element: <AppointmentPage /> },
-			{ path: "encounters", element: <EncounterPage /> },
-			{ path: "billing", element: <BillingPage /> },
-			{ path: "inventory", element: <InventoryPage /> },
-			{ path: "lab", element: <LabPage /> },
-			{ path: "users", element: <UsersPage /> },
-			{ path: "settings", element: <SettingsPage /> },
+			{
+				path: "patients",
+				element: withRoles(<PatientList />, [
+					"ADMIN",
+					"DOCTOR",
+					"RECEPTIONIST",
+				]),
+			},
+			{
+				path: "patients/new",
+				element: withRoles(<PatientForm />, [
+					"ADMIN",
+					"DOCTOR",
+					"RECEPTIONIST",
+				]),
+			},
+			{
+				path: "patients/:id",
+				element: withRoles(<PatientDetail />, [
+					"ADMIN",
+					"DOCTOR",
+					"RECEPTIONIST",
+				]),
+			},
+			{
+				path: "patients/:id/edit",
+				element: withRoles(<PatientForm />, [
+					"ADMIN",
+					"DOCTOR",
+					"RECEPTIONIST",
+				]),
+			},
+			{
+				path: "appointments",
+				element: withRoles(<AppointmentPage />, [
+					"ADMIN",
+					"DOCTOR",
+					"RECEPTIONIST",
+				]),
+			},
+			{
+				path: "encounters",
+				element: withRoles(<EncounterPage />, ["ADMIN", "DOCTOR"]),
+			},
+			{
+				path: "billing",
+				element: withRoles(<BillingPage />, ["ADMIN", "RECEPTIONIST"]),
+			},
+			{
+				path: "inventory",
+				element: withRoles(<InventoryPage />, ["ADMIN", "RECEPTIONIST"]),
+			},
+			{
+				path: "lab",
+				element: withRoles(<LabPage />, ["ADMIN", "DOCTOR", "LAB_TECH"]),
+			},
+			{
+				path: "users",
+				element: withRoles(<UsersPage />, ["ADMIN"]),
+			},
+			{
+				path: "settings",
+				element: withRoles(<SettingsPage />, ["ADMIN"]),
+			},
 		],
 	},
 ]);

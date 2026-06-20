@@ -28,5 +28,13 @@ const isAdmin = authorize("ADMIN");
 const isDoctor = authorize("ADMIN", "DOCTOR");
 const isStaff = authorize("ADMIN", "DOCTOR", "RECEPTIONIST");
 const isLabTech = authorize("ADMIN", "LAB_TECH");
+const isLabStaff = authorize("ADMIN", "DOCTOR", "LAB_TECH");
 
-module.exports = { authorize, isAdmin, isDoctor, isStaff, isLabTech };
+module.exports = {
+	authorize,
+	isAdmin,
+	isDoctor,
+	isStaff,
+	isLabTech,
+	isLabStaff,
+};

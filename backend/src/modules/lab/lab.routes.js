@@ -1,11 +1,12 @@
 const router = require("express").Router();
 const authenticate = require("../../middleware/auth");
-const { isStaff } = require("../../middleware/rbac");
+const { isLabStaff } = require("../../middleware/rbac");
 const prisma = require("../../config/db");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
 const { paginate, paginateMeta } = require("../../utils/pagination");
 
-router.use(authenticate, isStaff);
+// Lab access must match the frontend roles: ADMIN, DOCTOR, LAB_TECH
+router.use(authenticate, isLabStaff);
 
 // GET /api/lab/tests
 router.get("/tests", async (req, res, next) => {
