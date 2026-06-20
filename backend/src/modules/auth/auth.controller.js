@@ -17,8 +17,8 @@ const validate = require("../../middleware/validate");
 const COOKIE_NAME = "clinic_token";
 const cookieOptions = {
 	httpOnly: true,
-	secure: env.COOKIE_SECURE, // false in dev, true in production
-	sameSite: "lax",
+	sameSite: "none", // required for cross-site cookies
+	secure: true, // required when sameSite is "none" (HTTPS only)
 	maxAge: 24 * 60 * 60 * 1000, // 1 day (match JWT_EXPIRES_IN)
 	path: "/",
 };
