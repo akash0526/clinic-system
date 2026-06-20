@@ -5,17 +5,9 @@ const api = axios.create({
 	baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
 	timeout: 15000,
 	headers: { "Content-Type": "application/json" },
+	// Send & receive the httpOnly auth cookie on every request.
+	withCredentials: true,
 });
-
-// Attach stored token to every request
-api.interceptors.request.use(
-	(config) => {
-		const token = localStorage.getItem("clinic_token");
-		if (token) config.headers.Authorization = `Bearer ${token}`;
-		return config;
-	},
-	(error) => Promise.reject(error),
-);
 
 // Handle global errors
 api.interceptors.response.use(
@@ -26,8 +18,9 @@ api.interceptors.response.use(
 			error.response?.data?.message || "Network error. Please try again.";
 
 		if (status === 401) {
-			localStorage.removeItem("clinic_token");
-			// Only redirect if not already on login page
+			// Session expired / not authenticated — bounce to login.
+			// (No token to remove anymore — the cookie is cleared by the server
+			//  on logout, or simply expires.)
 			if (!window.location.pathname.includes("/login")) {
 				window.location.href = "/login";
 			}

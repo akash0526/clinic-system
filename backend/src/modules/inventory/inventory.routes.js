@@ -2,6 +2,12 @@ const router = require("express").Router();
 const authenticate = require("../../middleware/auth");
 const { isStaff } = require("../../middleware/rbac");
 const prisma = require("../../config/db");
+const validate = require("../../middleware/validate");
+const {
+	createItemSchema,
+	updateItemSchema,
+	stockMovementSchema,
+} = require("./inventory.validation");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
 const { paginate, paginateMeta } = require("../../utils/pagination");
 
@@ -47,72 +53,67 @@ router.get("/", async (req, res, next) => {
 });
 
 // GET /api/inventory/low-stock
-// FIXED: Prisma doesn't support field-to-field comparisons — use raw query
+// Prisma can't compare two columns directly — use a raw query.
 router.get("/low-stock", async (req, res, next) => {
 	try {
 		const items = await prisma.$queryRaw`
-  SELECT id, "itemCode", name, "genericName", category, unit,
-         "currentStock", "minimumStock", "sellingPrice"
-  FROM inventory_items
-  WHERE "currentStock" <= "minimumStock"
-  ORDER BY ("currentStock"::float / NULLIF("minimumStock", 0)) ASC
-  LIMIT 20
-`;
+			SELECT id, "itemCode", name, "genericName", category, unit,
+			       "currentStock", "minimumStock", "sellingPrice"
+			FROM inventory_items
+			WHERE "currentStock" <= "minimumStock"
+			ORDER BY ("currentStock"::float / NULLIF("minimumStock", 0)) ASC
+			LIMIT 20
+		`;
 		return sendSuccess(res, items);
 	} catch (err) {
 		next(err);
 	}
 });
 
-// POST /api/inventory
-router.post("/", async (req, res, next) => {
+// POST /api/inventory  (validated)
+router.post("/", validate(createItemSchema), async (req, res, next) => {
 	try {
-		const {
-			name,
-			genericName,
-			category,
-			unit,
-			purchasePrice,
-			sellingPrice,
-			currentStock,
-			minimumStock,
-			manufacturer,
-			batchNumber,
-		} = req.body;
+		const d = req.body;
 
-		// Auto-generate item code
-		const count = await prisma.inventoryItem.count();
+		// Auto-generate item code atomically with creation.
 		const prefix =
-			category === "MEDICINE"
+			d.category === "MEDICINE"
 				? "MED"
-				: category === "CONSUMABLE"
+				: d.category === "CONSUMABLE"
 					? "CON"
 					: "EQP";
-		const itemCode = `${prefix}-${String(count + 1).padStart(3, "0")}`;
 
-		const item = await prisma.inventoryItem.create({
-			data: {
-				itemCode,
-				name,
-				genericName,
-				category,
-				unit,
-				purchasePrice: parseFloat(purchasePrice),
-				sellingPrice: parseFloat(sellingPrice),
-				currentStock: parseInt(currentStock) || 0,
-				minimumStock: parseInt(minimumStock) || 10,
-				manufacturer,
-				batchNumber,
-			},
+		const item = await prisma.$transaction(async (tx) => {
+			const count = await tx.inventoryItem.count({
+				where: { category: d.category },
+			});
+			const itemCode = `${prefix}-${String(count + 1).padStart(3, "0")}`;
+
+			return tx.inventoryItem.create({
+				data: {
+					itemCode,
+					name: d.name,
+					genericName: d.genericName,
+					category: d.category,
+					unit: d.unit,
+					purchasePrice: d.purchasePrice,
+					sellingPrice: d.sellingPrice,
+					currentStock: d.currentStock ?? 0,
+					minimumStock: d.minimumStock ?? 10,
+					manufacturer: d.manufacturer,
+					batchNumber: d.batchNumber,
+				},
+			});
 		});
+
 		return sendCreated(res, item);
 	} catch (err) {
 		next(err);
 	}
 });
 
-// PUT /api/inventory/:id
-router.put("/:id", async (req, res, next) => {
+// PUT /api/inventory/:id  (validated — no longer trusts raw req.body)
+router.put("/:id", validate(updateItemSchema), async (req, res, next) => {
 	try {
 		const item = await prisma.inventoryItem.update({
 			where: { id: req.params.id },
@@ -124,47 +125,60 @@ router.put("/:id", async (req, res, next) => {
 	}
 });
 
-// POST /api/inventory/:id/stock
-router.post("/:id/stock", async (req, res, next) => {
-	try {
-		const { type, quantity, notes, reference } = req.body;
-		if (!type || !quantity) {
-			return res
-				.status(400)
-				.json({ success: false, message: "type and quantity required" });
+// POST /api/inventory/:id/stock  (validated + race-safe)
+router.post(
+	"/:id/stock",
+	validate(stockMovementSchema),
+	async (req, res, next) => {
+		try {
+			const { type, quantity, notes, reference } = req.body;
+			const id = req.params.id;
+			const qty = Math.abs(quantity);
+			const isOut = ["DISPENSED", "EXPIRED"].includes(type);
+
+			const updated = await prisma.$transaction(async (tx) => {
+				if (isOut) {
+					// Atomic, guarded decrement: only succeeds if enough stock exists.
+					const result = await tx.inventoryItem.updateMany({
+						where: { id, currentStock: { gte: qty } },
+						data: { currentStock: { decrement: qty } },
+					});
+					if (result.count === 0) {
+						const err = new Error("Insufficient stock for this movement");
+						err.statusCode = 400;
+						throw err;
+					}
+				} else {
+					await tx.inventoryItem.update({
+						where: { id },
+						data: { currentStock: { increment: qty } },
+					});
+				}
+
+				const item = await tx.inventoryItem.findUniqueOrThrow({
+					where: { id },
+					select: { currentStock: true },
+				});
+
+				await tx.stockTransaction.create({
+					data: {
+						itemId: id,
+						type,
+						quantity: qty,
+						balanceAfter: item.currentStock,
+						notes: notes || null,
+						reference: reference || null,
+					},
+				});
+
+				return tx.inventoryItem.findUnique({ where: { id } });
+			});
+
+			return sendSuccess(res, updated, "Stock adjusted");
+		} catch (err) {
+			next(err);
 		}
-
-		const item = await prisma.inventoryItem.findUniqueOrThrow({
-			where: { id: req.params.id },
-		});
-
-		const isOut = ["DISPENSED", "EXPIRED"].includes(type);
-		const delta = isOut
-			? -Math.abs(parseInt(quantity))
-			: Math.abs(parseInt(quantity));
-		const newStock = Math.max(0, item.currentStock + delta);
-
-		const [updated] = await prisma.$transaction([
-			prisma.inventoryItem.update({
-				where: { id: req.params.id },
-				data: { currentStock: newStock },
-			}),
-			prisma.stockTransaction.create({
-				data: {
-					itemId: req.params.id,
-					type,
-					quantity: Math.abs(parseInt(quantity)),
-					balanceAfter: newStock,
-					notes: notes || null,
-					reference: reference || null,
-				},
-			}),
-		]);
-
-		return sendSuccess(res, updated, "Stock adjusted");
-	} catch (err) {
-		next(err);
-	}
-});
+	},
+);
 
 module.exports = router;

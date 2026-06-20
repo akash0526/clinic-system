@@ -1,5 +1,5 @@
-// FIXED: dotenv must be loaded first, before any other require
-require("dotenv").config();
+// Validate environment FIRST — fails fast on bad config and loads .env.
+const env = require("./config/env");
 
 const express = require("express");
 const cors = require("cors");
@@ -7,7 +7,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
-
+const cookieParser = require("cookie-parser");
 const errorHandler = require("./middleware/errorHandler");
 
 // Route modules
@@ -25,18 +25,44 @@ const dashboardRoutes = require("./modules/dashboard/dashboard.routes");
 
 const app = express();
 
+// If you later run behind a reverse proxy (nginx, etc.), enable this so req.ip
+// and rate limiting use the real client IP. Safe to leave commented for a
+// direct Node setup (running `node server.js` without a proxy).
+// app.set("trust proxy", 1);
+
 // ── Security & Parsing ────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false })); // CSP off for dev
+// CSP enabled in production (defense-in-depth against XSS).
+app.use(
+	helmet({
+		contentSecurityPolicy:
+			env.NODE_ENV === "production"
+				? {
+						directives: {
+							defaultSrc: ["'self'"],
+							scriptSrc: ["'self'"],
+							styleSrc: ["'self'", "'unsafe-inline'"],
+							imgSrc: ["'self'", "data:", "blob:"],
+							connectSrc: ["'self'", env.FRONTEND_URL],
+							objectSrc: ["'none'"],
+							frameAncestors: ["'none'"],
+							upgradeInsecureRequests: [],
+						},
+					}
+				: false, // off in dev for HMR convenience
+		crossOriginResourcePolicy: { policy: "same-site" },
+	}),
+);
 app.use(compression());
 app.use(
 	cors({
-		origin: process.env.FRONTEND_URL || "http://localhost:5173",
+		origin: env.FRONTEND_URL,
 		credentials: true,
 	}),
 );
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+app.use(cookieParser());
+app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // ── Rate Limiting ─────────────────────────────────────────
 app.use(
@@ -44,6 +70,8 @@ app.use(
 	rateLimit({
 		windowMs: 15 * 60 * 1000,
 		max: 20,
+		standardHeaders: true,
+		legacyHeaders: false,
 		message: {
 			success: false,
 			message: "Too many login attempts. Try again later.",
@@ -56,6 +84,8 @@ app.use(
 	rateLimit({
 		windowMs: 60 * 1000,
 		max: 500,
+		standardHeaders: true,
+		legacyHeaders: false,
 	}),
 );
 

@@ -1,68 +1,84 @@
 const prisma = require("../../config/db");
 const { paginate, paginateMeta } = require("../../utils/pagination");
 
-const generateBillNumber = async () => {
-	const count = await prisma.bill.count();
+/**
+ * Generate a unique, year-scoped bill number using a dedicated counter table
+ * inside a transaction. This avoids the race condition that exists when using
+ * `count() + 1` (two concurrent requests could get the same number).
+ *
+ * NOTE: requires a `BillCounter` model in schema.prisma (see FILE 10).
+ */
+const nextBillNumber = async (tx) => {
 	const year = new Date().getFullYear();
-	return `INV-${year}-${String(count + 1).padStart(5, "0")}`;
+	const counter = await tx.billCounter.upsert({
+		where: { year },
+		update: { lastNumber: { increment: 1 } },
+		create: { year, lastNumber: 1 },
+	});
+	return `INV-${year}-${String(counter.lastNumber).padStart(5, "0")}`;
 };
 
 const createBill = async (data) => {
-	const billNumber = await generateBillNumber();
-
 	const subtotal = data.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 	const discountAmount =
 		data.discountType === "PERCENT"
-			? subtotal * (data.discountValue / 100)
+			? subtotal * ((data.discountValue || 0) / 100)
 			: data.discountValue || 0;
-	const afterDiscount = subtotal - discountAmount;
+	const afterDiscount = Math.max(0, subtotal - discountAmount);
 	const taxAmount = afterDiscount * ((data.taxPercent || 0) / 100);
 	const totalAmount = afterDiscount + taxAmount;
-	const dueAmount = totalAmount - (data.paidAmount || 0);
+	const paidAmount = data.paidAmount || 0;
+	const dueAmount = Math.max(0, totalAmount - paidAmount);
 
 	const status =
-		dueAmount <= 0 ? "PAID" : data.paidAmount > 0 ? "PARTIAL" : "PENDING";
+		dueAmount <= 0 ? "PAID" : paidAmount > 0 ? "PARTIAL" : "PENDING";
 
-	return prisma.bill.create({
-		data: {
-			billNumber,
-			billDateAD: new Date(),
-			patientId: data.patientId,
-			encounterId: data.encounterId,
-			subtotal,
-			discountType: data.discountType,
-			discountValue: data.discountValue || 0,
-			discountAmount,
-			taxPercent: data.taxPercent || 0,
-			taxAmount,
-			totalAmount,
-			paidAmount: data.paidAmount || 0,
-			dueAmount,
-			status,
-			paymentMethod: data.paymentMethod,
-			notes: data.notes,
-			items: {
-				create: data.items.map((i) => ({
-					description: i.description,
-					category: i.category || "OTHER",
-					quantity: i.quantity,
-					unitPrice: i.unitPrice,
-					totalPrice: i.quantity * i.unitPrice,
-				})),
+	// Wrap number generation + creation in one transaction so the invoice
+	// number is reserved atomically with the bill row.
+	return prisma.$transaction(async (tx) => {
+		const billNumber = await nextBillNumber(tx);
+
+		return tx.bill.create({
+			data: {
+				billNumber,
+				billDateAD: new Date(),
+				patientId: data.patientId,
+				encounterId: data.encounterId || null,
+				subtotal,
+				discountType: data.discountType,
+				discountValue: data.discountValue || 0,
+				discountAmount,
+				taxPercent: data.taxPercent || 0,
+				taxAmount,
+				totalAmount,
+				paidAmount,
+				dueAmount,
+				status,
+				paymentMethod: data.paymentMethod,
+				notes: data.notes,
+				items: {
+					create: data.items.map((i) => ({
+						description: i.description,
+						category: i.category || "OTHER",
+						quantity: i.quantity,
+						unitPrice: i.unitPrice,
+						totalPrice: i.quantity * i.unitPrice,
+					})),
+				},
+				payments:
+					paidAmount > 0
+						? {
+								create: [
+									{
+										amount: paidAmount,
+										method: data.paymentMethod || "CASH",
+									},
+								],
+							}
+						: undefined,
 			},
-			payments:
-				data.paidAmount > 0
-					? {
-							create: [
-								{
-									amount: data.paidAmount,
-									method: data.paymentMethod || "CASH",
-								},
-							],
-						}
-					: undefined,
-		},
-		include: { items: true, payments: true },
+			include: { items: true, payments: true },
+		});
 	});
 };
 
@@ -102,27 +118,45 @@ const getBills = async (query) => {
 const getBillById = (id) =>
 	prisma.bill.findUniqueOrThrow({
 		where: { id },
-		include: {
-			patient: true,
-			items: true,
-			payments: true,
-		},
+		include: { patient: true, items: true, payments: true },
 	});
 
+/**
+ * Add a payment to a bill — race-safe.
+ * Reads the bill INSIDE the transaction and recomputes totals atomically.
+ * Prevents lost updates / overpayment when two payments hit at once.
+ */
 const addPayment = async (billId, amount, method, reference) => {
-	const bill = await prisma.bill.findUniqueOrThrow({ where: { id: billId } });
-	const newPaid = Number(bill.paidAmount) + Number(amount);
-	const newDue = Number(bill.totalAmount) - newPaid;
-	const status = newDue <= 0 ? "PAID" : "PARTIAL";
+	return prisma.$transaction(async (tx) => {
+		const bill = await tx.bill.findUniqueOrThrow({ where: { id: billId } });
 
-	const [payment] = await prisma.$transaction([
-		prisma.payment.create({ data: { billId, amount, method, reference } }),
-		prisma.bill.update({
+		if (["CANCELLED", "REFUNDED"].includes(bill.status)) {
+			const err = new Error(`Cannot add payment to a ${bill.status} bill`);
+			err.statusCode = 400;
+			throw err;
+		}
+
+		const newPaid = Number(bill.paidAmount) + Number(amount);
+		if (newPaid > Number(bill.totalAmount) + 0.001) {
+			const err = new Error("Payment exceeds the amount due");
+			err.statusCode = 400;
+			throw err;
+		}
+
+		const newDue = Math.max(0, Number(bill.totalAmount) - newPaid);
+		const status = newDue <= 0 ? "PAID" : "PARTIAL";
+
+		const payment = await tx.payment.create({
+			data: { billId, amount, method, reference },
+		});
+
+		await tx.bill.update({
 			where: { id: billId },
-			data: { paidAmount: newPaid, dueAmount: Math.max(0, newDue), status },
-		}),
-	]);
-	return payment;
+			data: { paidAmount: newPaid, dueAmount: newDue, status },
+		});
+
+		return payment;
+	});
 };
 
 module.exports = { createBill, getBills, getBillById, addPayment };

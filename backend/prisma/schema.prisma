@@ -614,3 +614,16 @@ model SmsTemplate {
 
   @@map("sms_templates")
 }
+
+// ─────────────────────────────────────────────
+// BILL COUNTER
+// Powers race-free, year-scoped invoice numbers in bill.service.js
+// ─────────────────────────────────────────────
+
+model BillCounter {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@map("bill_counters")
+}

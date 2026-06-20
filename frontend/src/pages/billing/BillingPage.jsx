@@ -2,16 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Printer, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "../../api/axios";
+import { billingApi } from "../../api/billing.api";
 import { patientsApi } from "../../api/patients.api";
 import { formatDate } from "../../utils/date";
-
-const billingApi = {
-	list: (params) => api.get("/billing", { params }),
-	get: (id) => api.get(`/billing/${id}`),
-	create: (data) => api.post("/billing", data),
-	addPayment: (id, d) => api.post(`/billing/${id}/payment`, d),
-};
 
 const BILL_ITEMS_DEFAULTS = [
 	{
@@ -32,7 +25,9 @@ const StatusBadge = ({ status }) => {
 	};
 	return (
 		<span
-			className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status] || "bg-gray-100"}`}
+			className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+				map[status] || "bg-gray-100"
+			}`}
 		>
 			{status}
 		</span>
@@ -101,6 +96,9 @@ const NewBillModal = ({ onClose }) => {
 			toast.success(`Bill ${res.data.data.billNumber} created!`);
 			queryClient.invalidateQueries(["bills"]);
 			onClose();
+		},
+		onError: (err) => {
+			toast.error(err.response?.data?.message || "Failed to create bill");
 		},
 	});
 
@@ -391,11 +389,136 @@ const NewBillModal = ({ onClose }) => {
 	);
 };
 
+// ─── Payment Modal ─────────────────────────────────────────
+const PaymentModal = ({ bill, onClose }) => {
+	const queryClient = useQueryClient();
+	const due = Number(bill.dueAmount);
+	const [amount, setAmount] = useState(due);
+	const [method, setMethod] = useState("CASH");
+	const [reference, setReference] = useState("");
+
+	const mutation = useMutation({
+		mutationFn: () =>
+			billingApi.addPayment(bill.id, {
+				amount: Number(amount),
+				method,
+				reference,
+			}),
+		onSuccess: () => {
+			toast.success("Payment recorded!");
+			queryClient.invalidateQueries(["bills"]);
+			onClose();
+		},
+		onError: (err) => {
+			toast.error(err.response?.data?.message || "Failed to record payment");
+		},
+	});
+
+	return (
+		<div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+			<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl my-6">
+				<div className="flex items-center justify-between p-5 border-b">
+					<h2 className="text-lg font-semibold">Record Payment</h2>
+					<button
+						onClick={onClose}
+						className="text-gray-400 hover:text-gray-600 text-xl"
+					>
+						×
+					</button>
+				</div>
+
+				<div className="p-5 space-y-4">
+					<div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1">
+						<div className="flex justify-between">
+							<span className="text-gray-600">Bill</span>
+							<span className="font-mono">{bill.billNumber}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-gray-600">Total</span>
+							<span>NPR {Number(bill.totalAmount).toLocaleString()}</span>
+						</div>
+						<div className="flex justify-between font-bold text-amber-700">
+							<span>Amount Due</span>
+							<span>NPR {due.toLocaleString()}</span>
+						</div>
+					</div>
+
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-1">
+							Payment Amount (NPR) *
+						</label>
+						<input
+							type="number"
+							min="1"
+							max={due}
+							value={amount}
+							onChange={(e) => setAmount(e.target.value)}
+							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+						/>
+					</div>
+
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-1">
+							Payment Method
+						</label>
+						<select
+							value={method}
+							onChange={(e) => setMethod(e.target.value)}
+							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+						>
+							{["CASH", "ESEWA", "KHALTI", "BANK_TRANSFER", "INSURANCE"].map(
+								(m) => (
+									<option key={m} value={m}>
+										{m}
+									</option>
+								),
+							)}
+						</select>
+					</div>
+
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-1">
+							Reference (optional)
+						</label>
+						<input
+							value={reference}
+							onChange={(e) => setReference(e.target.value)}
+							placeholder="Transaction ID / note"
+							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+						/>
+					</div>
+
+					<div className="flex gap-3 pt-2">
+						<button
+							onClick={onClose}
+							className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+						>
+							Cancel
+						</button>
+						<button
+							onClick={() => mutation.mutate()}
+							disabled={
+								mutation.isLoading ||
+								Number(amount) <= 0 ||
+								Number(amount) > due
+							}
+							className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+						>
+							{mutation.isLoading ? "Saving..." : "Record Payment"}
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 // ─── Main ─────────────────────────────────────────────────
 const BillingPage = () => {
 	const [showModal, setShowModal] = useState(false);
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
+	const [payingBill, setPayingBill] = useState(null);
 
 	const { data, isLoading } = useQuery({
 		queryKey: ["bills", search, statusFilter],
@@ -439,8 +562,11 @@ const BillingPage = () => {
 							<button
 								key={s}
 								onClick={() => setStatusFilter(s)}
-								className={`px-3 py-1.5 text-xs rounded-full font-medium border transition-colors
-                  ${statusFilter === s ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-600 border-gray-300 hover:border-primary-400"}`}
+								className={`px-3 py-1.5 text-xs rounded-full font-medium border transition-colors ${
+									statusFilter === s
+										? "bg-primary-600 text-white border-primary-600"
+										: "bg-white text-gray-600 border-gray-300 hover:border-primary-400"
+								}`}
 							>
 								{s || "All"}
 							</button>
@@ -493,7 +619,9 @@ const BillingPage = () => {
 											{bill.patient?.patientCode}
 										</p>
 									</td>
-									<td className="px-4 py-3 text-gray-600">{formatDate(bill.billDateAD)}</td>
+									<td className="px-4 py-3 text-gray-600">
+										{formatDate(bill.billDateAD)}
+									</td>
 									<td className="px-4 py-3 font-medium">
 										NPR {Number(bill.totalAmount).toLocaleString()}
 									</td>
@@ -509,12 +637,26 @@ const BillingPage = () => {
 										<StatusBadge status={bill.status} />
 									</td>
 									<td className="px-4 py-3">
-										<button
-											onClick={() => window.print()}
-											className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
-										>
-											<Printer size={14} />
-										</button>
+										<div className="flex items-center gap-1">
+											{Number(bill.dueAmount) > 0 &&
+												bill.status !== "CANCELLED" &&
+												bill.status !== "REFUNDED" && (
+													<button
+														onClick={() => setPayingBill(bill)}
+														title="Record payment"
+														className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+													>
+														<DollarSign size={14} />
+													</button>
+												)}
+											<button
+												onClick={() => window.print()}
+												title="Print"
+												className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+											>
+												<Printer size={14} />
+											</button>
+										</div>
 									</td>
 								</tr>
 							))}
@@ -524,6 +666,9 @@ const BillingPage = () => {
 			</div>
 
 			{showModal && <NewBillModal onClose={() => setShowModal(false)} />}
+			{payingBill && (
+				<PaymentModal bill={payingBill} onClose={() => setPayingBill(null)} />
+			)}
 		</div>
 	);
 };

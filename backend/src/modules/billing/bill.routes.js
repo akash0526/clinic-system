@@ -1,7 +1,9 @@
 const router = require("express").Router();
 const authenticate = require("../../middleware/auth");
 const { isStaff } = require("../../middleware/rbac");
+const validate = require("../../middleware/validate");
 const svc = require("./bill.service");
+const { createBillSchema, addPaymentSchema } = require("./bill.validation");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
 
 router.use(authenticate, isStaff);
@@ -24,7 +26,7 @@ router.get("/:id", async (req, res, next) => {
 	}
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", validate(createBillSchema), async (req, res, next) => {
 	try {
 		const bill = await svc.createBill(req.body);
 		return sendCreated(res, bill, "Bill created");
@@ -33,19 +35,23 @@ router.post("/", async (req, res, next) => {
 	}
 });
 
-router.post("/:id/payment", async (req, res, next) => {
-	try {
-		const { amount, method, reference } = req.body;
-		const payment = await svc.addPayment(
-			req.params.id,
-			amount,
-			method,
-			reference,
-		);
-		return sendSuccess(res, payment, "Payment recorded");
-	} catch (err) {
-		next(err);
-	}
-});
+router.post(
+	"/:id/payment",
+	validate(addPaymentSchema),
+	async (req, res, next) => {
+		try {
+			const { amount, method, reference } = req.body;
+			const payment = await svc.addPayment(
+				req.params.id,
+				amount,
+				method,
+				reference,
+			);
+			return sendSuccess(res, payment, "Payment recorded");
+		} catch (err) {
+			next(err);
+		}
+	},
+);
 
 module.exports = router;

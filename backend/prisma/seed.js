@@ -54,22 +54,22 @@ async function main() {
 	];
 
 	for (const u of usersToUpsert) {
-		const hash = await bcrypt.hash(u.password, 12);
+		const passwordHash = await bcrypt.hash(u.password, 12);
 		await prisma.user.upsert({
-			where: {
-				email: u.email, // Use u.email instead of hardcoding "admin@clinic.com"
-			},
+			where: { email: u.email },
 			update: {},
 			create: {
 				email: u.email,
-				// REMOVE the 'password' line here
-				passwordHash: hash, // Use the hash you just generated above
+				passwordHash,
 				fullName: u.fullName,
 				fullNameNe: u.fullNameNe,
 				role: u.role,
+				licenseNumber: u.licenseNumber ?? null,
+				specialization: u.specialization ?? null,
 			},
 		});
 	}
+	console.log(`👤 ${usersToUpsert.length} users seeded`);
 
 	// ── 2. Clinic Settings (avoid duplicates) ────────────
 	const settings = [

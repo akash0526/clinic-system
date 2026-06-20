@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const authService = require("./auth.service");
+const env = require("../../config/env");
 const {
 	sendSuccess,
 	sendCreated,
@@ -7,6 +8,20 @@ const {
 } = require("../../utils/apiResponse");
 const { createAuditLog } = require("../../middleware/audit");
 const validate = require("../../middleware/validate");
+
+// ─── Cookie options ───────────────────────────────────────
+// httpOnly  -> JavaScript can't read it (protects against XSS token theft)
+// secure    -> only sent over HTTPS (true in production)
+// sameSite  -> "lax" works for same-site dev; use "none" only if frontend &
+//              backend are on different domains over HTTPS.
+const COOKIE_NAME = "clinic_token";
+const cookieOptions = {
+	httpOnly: true,
+	secure: env.COOKIE_SECURE, // false in dev, true in production
+	sameSite: "lax",
+	maxAge: 24 * 60 * 60 * 1000, // 1 day (match JWT_EXPIRES_IN)
+	path: "/",
+};
 
 // ─── Validation Schemas ────────────────────────────────────
 
@@ -57,13 +72,16 @@ const register = [
 
 /**
  * POST /api/auth/login
- * Public: authenticate and receive JWT
+ * Public: authenticate, set httpOnly cookie, return user
  */
 const login = [
 	validate(loginSchema),
 	async (req, res, next) => {
 		try {
 			const { user, token } = await authService.loginUser(req.body);
+
+			// Set the JWT as a secure, httpOnly cookie.
+			res.cookie(COOKIE_NAME, token, cookieOptions);
 
 			await createAuditLog({
 				userId: user.id,
@@ -75,6 +93,8 @@ const login = [
 				userAgent: req.headers["user-agent"],
 			});
 
+			// Still return the token in the body too, so the transition is smooth
+			// and any older client keeps working. The cookie is the secure path.
 			return sendSuccess(res, { user, token }, "Login successful");
 		} catch (err) {
 			next(err);
@@ -92,7 +112,7 @@ const me = async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Client should discard token; log the event server-side
+ * Clears the auth cookie and logs the event server-side
  */
 const logout = async (req, res) => {
 	await createAuditLog({
@@ -103,6 +123,10 @@ const logout = async (req, res) => {
 		recordId: req.user.id,
 		ipAddress: req.ip,
 	});
+
+	// Clear the cookie (must use same path/options it was set with).
+	res.clearCookie(COOKIE_NAME, { path: "/" });
+
 	return sendSuccess(res, null, "Logged out successfully");
 };
 

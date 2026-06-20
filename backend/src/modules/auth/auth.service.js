@@ -3,31 +3,24 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../../config/db");
+const env = require("../../config/env");
 
 const SALT_ROUNDS = 12;
 
-/**
- * Hash a plain-text password
- */
+/** Hash a plain-text password */
 const hashPassword = (password) => bcrypt.hash(password, SALT_ROUNDS);
 
-/**
- * Compare plain-text with hashed password
- */
+/** Compare plain-text with hashed password */
 const comparePassword = (password, hash) => bcrypt.compare(password, hash);
 
-/**
- * Generate JWT access token
- */
+/** Generate JWT access token (default expiry shortened to 1d) */
 const generateToken = (userId, role) => {
-	return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
-		expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+	return jwt.sign({ userId, role }, env.JWT_SECRET, {
+		expiresIn: env.JWT_EXPIRES_IN,
 	});
 };
 
-/**
- * Register a new user (admin only can create users)
- */
+/** Register a new user (admin only can create users) */
 const registerUser = async ({
 	email,
 	password,
@@ -71,9 +64,7 @@ const registerUser = async ({
 	return user;
 };
 
-/**
- * Login user — returns user + token
- */
+/** Login user — returns user + token */
 const loginUser = async ({ email, password }) => {
 	const user = await prisma.user.findUnique({ where: { email } });
 	if (!user || !user.isActive) {
@@ -91,7 +82,6 @@ const loginUser = async ({ email, password }) => {
 
 	const token = generateToken(user.id, user.role);
 
-	// Return user without sensitive fields
 	const { passwordHash, ...safeUser } = user;
 	return { user: safeUser, token };
 };

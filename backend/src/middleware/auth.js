@@ -1,20 +1,30 @@
 // JWT authentication middleware
-// Verifies Bearer token and attaches req.user
+// Reads the token from the httpOnly cookie first, then falls back to the
+// Authorization: Bearer header. Attaches req.user.
 
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/db");
+const env = require("../config/env");
 const { sendError } = require("../utils/apiResponse");
 
 const authenticate = async (req, res, next) => {
 	try {
-		// Extract token from Authorization: Bearer <token>
-		const authHeader = req.headers.authorization;
-		if (!authHeader?.startsWith("Bearer ")) {
+		// 1) Prefer the secure httpOnly cookie.
+		let token = req.cookies?.clinic_token;
+
+		// 2) Fall back to the Authorization header (Bearer <token>).
+		if (!token) {
+			const authHeader = req.headers.authorization;
+			if (authHeader?.startsWith("Bearer ")) {
+				token = authHeader.split(" ")[1];
+			}
+		}
+
+		if (!token) {
 			return sendError(res, "Authentication required", 401);
 		}
 
-		const token = authHeader.split(" ")[1];
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
+		const decoded = jwt.verify(token, env.JWT_SECRET);
 
 		// Fetch fresh user (ensures deactivated users are blocked)
 		const user = await prisma.user.findUnique({
