@@ -1,24 +1,15 @@
 const router = require("express").Router();
-const { z } = require("zod");
 const authenticate = require("../../middleware/auth");
 const { isStaff } = require("../../middleware/rbac");
 const validate = require("../../middleware/validate");
 const svc = require("./appointment.service");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
-const { DATE_ONLY_REGEX } = require("../../utils/date");
+const {
+	createAppointmentSchema,
+	updateStatusSchema,
+} = require("./appointment.validation");
 
 router.use(authenticate);
-
-const createSchema = z.object({
-	patientId: z.string().cuid(),
-	doctorId: z.string().cuid(),
-	appointmentDateAD: z.string().regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD"),
-	appointmentTime: z.string(),
-	type: z.string().default("OPD"),
-	chiefComplaint: z.string().optional(),
-	notes: z.string().optional(),
-	duration: z.number().int().default(15),
-});
 
 router.get("/", isStaff, async (req, res, next) => {
 	try {
@@ -47,7 +38,7 @@ router.get("/:id", isStaff, async (req, res, next) => {
 	}
 });
 
-router.post("/", isStaff, validate(createSchema), async (req, res, next) => {
+router.post("/", isStaff, validate(createAppointmentSchema), async (req, res, next) => {
 	try {
 		const appt = await svc.createAppointment(req.body, req.user.id);
 		return sendCreated(res, appt, "Appointment booked");
@@ -56,14 +47,21 @@ router.post("/", isStaff, validate(createSchema), async (req, res, next) => {
 	}
 });
 
-router.patch("/:id/status", isStaff, async (req, res, next) => {
-	try {
-		const { status } = req.body;
-		const appt = await svc.updateAppointmentStatus(req.params.id, status);
-		return sendSuccess(res, appt, "Status updated");
-	} catch (err) {
-		next(err);
-	}
-});
+router.patch(
+	"/:id/status",
+	isStaff,
+	validate(updateStatusSchema, "body", 400),
+	async (req, res, next) => {
+		try {
+			const appt = await svc.updateAppointmentStatus(
+				req.params.id,
+				req.body.status,
+			);
+			return sendSuccess(res, appt, "Status updated");
+		} catch (err) {
+			next(err);
+		}
+	},
+);
 
 module.exports = router;

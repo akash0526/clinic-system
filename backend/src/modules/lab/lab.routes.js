@@ -2,8 +2,17 @@ const router = require("express").Router();
 const authenticate = require("../../middleware/auth");
 const { isLabStaff } = require("../../middleware/rbac");
 const prisma = require("../../config/db");
-const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
+const {
+	sendSuccess,
+	sendCreated,
+	sendError,
+} = require("../../utils/apiResponse");
 const { paginate, paginateMeta } = require("../../utils/pagination");
+const validate = require("../../middleware/validate");
+const {
+	orderLabResultSchema,
+	updateLabResultSchema,
+} = require("./lab.validation");
 
 // Lab access must match the frontend roles: ADMIN, DOCTOR, LAB_TECH
 router.use(authenticate, isLabStaff);
@@ -62,7 +71,7 @@ router.get("/results", async (req, res, next) => {
 });
 
 // POST /api/lab/results — order a test
-router.post("/results", async (req, res, next) => {
+router.post("/results", validate(orderLabResultSchema, "body", 400), async (req, res, next) => {
 	try {
 		const { patientId, testId, encounterId } = req.body;
 		const result = await prisma.labResult.create({
@@ -76,8 +85,11 @@ router.post("/results", async (req, res, next) => {
 });
 
 // PUT /api/lab/results/:id — enter result
-router.put("/results/:id", async (req, res, next) => {
+router.put("/results/:id", validate(updateLabResultSchema, "body", 400), async (req, res, next) => {
 	try {
+		if (Object.keys(req.body).length === 0) {
+			return sendError(res, "No fields to update", 400);
+		}
 		const { resultData, interpretation, notes, status } = req.body;
 		const result = await prisma.labResult.update({
 			where: { id: req.params.id },

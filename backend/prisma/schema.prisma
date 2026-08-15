@@ -627,3 +627,17 @@ model BillCounter {
 
   @@map("bill_counters")
 }
+
+// ─────────────────────────────────────────────
+// PRESCRIPTION COUNTER
+// Powers race-free, year-scoped prescription numbers in prescription.service.js
+// Mirrors the proven BillCounter pattern (atomic upsert-increment in a transaction).
+// ─────────────────────────────────────────────
+
+model PrescriptionCounter {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@map("prescription_counters")
+}

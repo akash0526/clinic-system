@@ -3,23 +3,12 @@ const bcrypt = require("bcryptjs");
 const authenticate = require("../../middleware/auth");
 const { isAdmin } = require("../../middleware/rbac");
 const prisma = require("../../config/db");
-const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
+const { sendSuccess, sendCreated, sendError } = require("../../utils/apiResponse");
 const validate = require("../../middleware/validate");
 const { z } = require("zod");
+const { userSchema, updateUserSchema } = require("./user.validation");
 
 router.use(authenticate, isAdmin);
-
-const userSchema = z.object({
-	email: z.string().email(),
-	password: z.string().min(8).optional(),
-	fullName: z.string().min(2),
-	fullNameNe: z.string().optional(),
-	role: z.enum(["ADMIN", "DOCTOR", "RECEPTIONIST", "LAB_TECH"]),
-	phone: z.string().optional(),
-	licenseNumber: z.string().optional(),
-	specialization: z.string().optional(),
-	isActive: z.boolean().optional(),
-});
 
 router.get("/", async (req, res, next) => {
 	try {
@@ -68,10 +57,16 @@ router.post(
 	},
 );
 
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", validate(updateUserSchema, "body", 400), async (req, res, next) => {
 	try {
 		const { password, ...data } = req.body;
+		if (!password && Object.keys(data).length === 0) {
+			return sendError(res, "No fields to update", 400);
+		}
 		const updateData = { ...data };
+		// Secure flow: only a plain-text `password` is accepted; it is hashed
+		// server-side with bcrypt. Raw `passwordHash` never reaches this code
+		// (it is rejected by updateUserSchema's strict allowlist).
 		if (password) updateData.passwordHash = await bcrypt.hash(password, 12);
 		const user = await prisma.user.update({
 			where: { id: req.params.id },

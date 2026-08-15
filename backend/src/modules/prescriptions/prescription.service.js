@@ -86,12 +86,19 @@ const deriveItemStatus = (quantityPrescribed, quantityDispensed, currentStatus) 
 	return "PARTIAL";
 };
 
-const generatePrescriptionNumber = async () => {
+// Race-free, year-scoped prescription numbers.
+// Uses an atomic upsert-increment on PrescriptionCounter INSIDE the calling
+// transaction, mirroring the proven BillCounter pattern in bill.service.js.
+// (The old count()+1 approach could hand out the same number to concurrent
+// creates, failing with a unique-constraint 409.)
+const nextPrescriptionNumber = async (tx) => {
 	const year = new Date().getFullYear();
-	const count = await prisma.prescription.count({
-		where: { prescriptionNumber: { startsWith: `RX-${year}-` } },
+	const counter = await tx.prescriptionCounter.upsert({
+		where: { year },
+		update: { lastNumber: { increment: 1 } },
+		create: { year, lastNumber: 1 },
 	});
-	return `RX-${year}-${String(count + 1).padStart(5, "0")}`;
+	return `RX-${year}-${String(counter.lastNumber).padStart(5, "0")}`;
 };
 
 const loadInventoryItems = async (items) => {
@@ -214,19 +221,24 @@ const createPrescription = async (data, prescribedById) => {
 	await ensureEncounterMatchesPatient(data.encounterId, data.patientId);
 
 	const items = await normalizePrescriptionItems(data.items);
-	const prescriptionNumber = await generatePrescriptionNumber();
 
-	return prisma.prescription.create({
-		data: {
-			prescriptionNumber,
-			patientId: data.patientId,
-			encounterId: data.encounterId,
-			prescribedById,
-			notes: cleanText(data.notes),
-			status: derivePrescriptionStatusFromItems(items.map((item) => ({ ...item, quantityDispensed: 0, status: "PENDING" }))),
-			items: { create: items },
-		},
-		include: prescriptionInclude,
+	// Number generation + row creation share one transaction so the number is
+	// reserved atomically with the prescription row (race-safe).
+	return prisma.$transaction(async (tx) => {
+		const prescriptionNumber = await nextPrescriptionNumber(tx);
+
+		return tx.prescription.create({
+			data: {
+				prescriptionNumber,
+				patientId: data.patientId,
+				encounterId: data.encounterId,
+				prescribedById,
+				notes: cleanText(data.notes),
+				status: derivePrescriptionStatusFromItems(items.map((item) => ({ ...item, quantityDispensed: 0, status: "PENDING" }))),
+				items: { create: items },
+			},
+			include: prescriptionInclude,
+		});
 	});
 };
 
