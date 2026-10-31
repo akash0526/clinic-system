@@ -1,269 +1,254 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Search, Eye, Edit2, UserX } from "lucide-react";
+import { Plus, Eye, Pencil, Users } from "lucide-react";
 import { patientsApi } from "../../api/patients.api";
-import useAuthStore from "../../store/authStore";
-import { formatDate } from "../../utils/date";
+import { formatDate, calculateAge } from "../../utils/date";
+import PageHeader from "../../components/ui/PageHeader";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Avatar from "../../components/ui/Avatar";
+import Pagination from "../../components/ui/Pagination";
+import EmptyState from "../../components/ui/EmptyState";
+import { SearchInput } from "../../components/ui/Input";
+import {
+	TableWrap,
+	THead,
+	TH,
+	TBody,
+	TR,
+	TD,
+	TableState,
+} from "../../components/ui/Table";
+import { cn } from "../../utils/cn";
 
-// ─── Subcomponents ────────────────────────────────────────
-
-const GenderBadge = ({ gender }) => {
-	const colors = {
-		MALE: "bg-blue-100 text-blue-700",
-		FEMALE: "bg-pink-100 text-pink-700",
-		OTHER: "bg-gray-100 text-gray-700",
-	};
-	const labels = { MALE: "Male", FEMALE: "Female", OTHER: "Other" };
-	return (
-		<span
-			className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[gender]}`}
-		>
-			{labels[gender]}
-		</span>
-	);
-};
-
-const Pagination = ({ meta, page, setPage }) => {
-	if (!meta || meta.totalPages <= 1) return null;
-	return (
-		<div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-			<p className="text-sm text-gray-600">
-				Showing {(page - 1) * meta.limit + 1}–
-				{Math.min(page * meta.limit, meta.total)} of {meta.total}
-			</p>
-			<div className="flex gap-2">
-				<button
-					onClick={() => setPage((p) => p - 1)}
-					disabled={!meta.hasPrev}
-					className="px-3 py-1 text-sm border rounded-md disabled:opacity-40 hover:bg-gray-50"
-				>
-					Previous
-				</button>
-				<span className="px-3 py-1 text-sm text-gray-700">
-					Page {page} of {meta.totalPages}
-				</span>
-				<button
-					onClick={() => setPage((p) => p + 1)}
-					disabled={!meta.hasNext}
-					className="px-3 py-1 text-sm border rounded-md disabled:opacity-40 hover:bg-gray-50"
-				>
-					Next
-				</button>
-			</div>
-		</div>
-	);
-};
-
-// ─── Main Component ───────────────────────────────────────
+const GENDER_TONE = { MALE: "blue", FEMALE: "pink", OTHER: "neutral" };
 
 const PatientList = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { user } = useAuthStore();
 
 	const [search, setSearch] = useState("");
 	const [gender, setGender] = useState("");
 	const [page, setPage] = useState(1);
 	const [searchInput, setSearchInput] = useState("");
 
-	const { data, isLoading, error } = useQuery({
+	// Debounced live search — no submit button needed.
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearch(searchInput.trim());
+			setPage(1);
+		}, 300);
+		return () => clearTimeout(timer);
+	}, [searchInput]);
+
+	const { data, isLoading, isFetching, error } = useQuery({
 		queryKey: ["patients", { search, gender, page }],
 		queryFn: () =>
 			patientsApi.list({ search, gender, page, limit: 20 }).then((r) => r.data),
 		keepPreviousData: true,
 	});
 
-	const handleSearch = (e) => {
-		e.preventDefault();
-		setSearch(searchInput);
-		setPage(1);
-	};
-
-	const handleGenderFilter = (val) => {
-		setGender(val === gender ? "" : val);
-		setPage(1);
-	};
+	const rows = data?.data ?? [];
+	const hasFilters = Boolean(search || gender);
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			{/* ── Header ─────────────────────────────────────── */}
-			<div className="flex items-center justify-between mb-6">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900">
-						{t("patient.title")}
-					</h1>
-					<p className="text-sm text-gray-500 mt-1">
-						{data?.meta?.total ?? 0} registered patients
-					</p>
-				</div>
-				<Link
-					to="/patients/new"
-					className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-				>
-					<Plus size={16} />
-					{t("patient.add")}
-				</Link>
-			</div>
+		<div className="page">
+			<PageHeader
+				title={t("patient.title")}
+				description={`${data?.meta?.total ?? 0} registered ${
+					data?.meta?.total === 1 ? "patient" : "patients"
+				}`}
+				actions={
+					<Button as={Link} to="/patients/new" icon={Plus}>
+						{t("patient.add")}
+					</Button>
+				}
+			/>
 
-			{/* ── Search & Filters ────────────────────────────── */}
-			<div className="bg-white rounded-xl border border-gray-200 mb-4">
-				<div className="p-4 flex flex-wrap gap-3 items-center">
-					{/* Search bar */}
-					<form onSubmit={handleSearch} className="flex flex-1 min-w-64 gap-2">
-						<div className="relative flex-1">
-							<Search
-								size={16}
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-							/>
-							<input
-								type="text"
-								value={searchInput}
-								onChange={(e) => setSearchInput(e.target.value)}
-								placeholder={t("patient.search")}
-								className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-							/>
-						</div>
-						<button
-							type="submit"
-							className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700"
-						>
-							{t("common.search")}
-						</button>
-					</form>
+			<Card className="overflow-hidden">
+				{/* Toolbar */}
+				<div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+					<SearchInput
+						value={searchInput}
+						onChange={(e) => setSearchInput(e.target.value)}
+						placeholder={t("patient.search")}
+						className="w-full sm:max-w-xs"
+					/>
 
-					{/* Gender filter pills */}
-					<div className="flex gap-2">
-						{["MALE", "FEMALE", "OTHER"].map((g) => (
-							<button
-								key={g}
-								onClick={() => handleGenderFilter(g)}
-								className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-                  ${
-										gender === g
-											? "bg-primary-600 text-white border-primary-600"
-											: "bg-white text-gray-600 border-gray-300 hover:border-primary-400"
-									}`}
-							>
-								{g.charAt(0) + g.slice(1).toLowerCase()}
-							</button>
-						))}
+					<div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+						{["", "MALE", "FEMALE", "OTHER"].map((g) => {
+							const active = gender === g;
+							const label = g ? t(`patient.${g.toLowerCase()}`) : "All";
+							return (
+								<button
+									key={g || "all"}
+									onClick={() => {
+										setGender(g);
+										setPage(1);
+									}}
+									className={cn(
+										"h-8 whitespace-nowrap rounded-full px-3 text-xs font-medium ring-1 ring-inset transition",
+										active
+											? "bg-slate-900 text-white ring-slate-900"
+											: "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 hover:text-slate-900",
+									)}
+								>
+									{label}
+								</button>
+							);
+						})}
 					</div>
 				</div>
 
-				{/* ── Table ──────────────────────────────────────── */}
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm">
-						<thead className="bg-gray-50 border-y border-gray-200">
+				<TableWrap>
+					<THead>
+						<tr>
+							<TH>Patient</TH>
+							<TH className="hidden md:table-cell">Code</TH>
+							<TH className="hidden sm:table-cell">Gender</TH>
+							<TH className="hidden lg:table-cell">Age / DOB</TH>
+							<TH className="hidden md:table-cell">Phone</TH>
+							<TH className="hidden xl:table-cell">District</TH>
+							<TH className="text-right">Actions</TH>
+						</tr>
+					</THead>
+					<TBody className={cn(isFetching && "opacity-60 transition-opacity")}>
+						{isLoading && <TableState loading />}
+
+						{!isLoading && error && (
+							<TableState
+								icon={Users}
+								title="Could not load patients"
+								description="Please check your connection and try again."
+							/>
+						)}
+
+						{!isLoading && !error && rows.length === 0 && (
 							<tr>
-								{[
-									"Patient Code",
-									"Name / नाम",
-									"Gender",
-									"Date of Birth",
-									"Phone",
-									"District",
-									"Actions",
-								].map((h) => (
-									<th
-										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-									>
-										{h}
-									</th>
-								))}
+								<td colSpan={7}>
+									<EmptyState
+										icon={Users}
+										title={hasFilters ? "No matching patients" : t("common.noData")}
+										description={
+											hasFilters
+												? "Try a different search term or clear the filters."
+												: "Patient records will appear here once they are registered."
+										}
+										action={
+											hasFilters ? (
+												<Button
+													size="sm"
+													variant="secondary"
+													onClick={() => {
+														setSearchInput("");
+														setGender("");
+													}}
+												>
+													Clear filters
+												</Button>
+											) : (
+												<Button
+													as={Link}
+													to="/patients/new"
+													size="sm"
+													icon={Plus}
+												>
+													{t("patient.add")}
+												</Button>
+											)
+										}
+									/>
+								</td>
 							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100">
-							{isLoading && (
-								<tr>
-									<td
-										colSpan={7}
-										className="px-4 py-12 text-center text-gray-400"
-									>
-										{t("common.loading")}
-									</td>
-								</tr>
-							)}
-							{error && (
-								<tr>
-									<td
-										colSpan={7}
-										className="px-4 py-12 text-center text-red-500"
-									>
-										Error loading patients
-									</td>
-								</tr>
-							)}
-							{!isLoading && data?.data?.length === 0 && (
-								<tr>
-									<td
-										colSpan={7}
-										className="px-4 py-12 text-center text-gray-400"
-									>
-										{t("common.noData")}
-									</td>
-								</tr>
-							)}
-							{data?.data?.map((patient) => (
-								<tr
-									key={patient.id}
-									className="hover:bg-gray-50 transition-colors"
-								>
-									<td className="px-4 py-3">
-										<span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-700">
-											{patient.patientCode}
-										</span>
-									</td>
-									<td className="px-4 py-3">
-										<div className="font-medium text-gray-900">
-											{patient.fullName}
+						)}
+
+						{rows.map((patient) => (
+							<TR
+								key={patient.id}
+								className="cursor-pointer"
+								onClick={() => navigate(`/patients/${patient.id}`)}
+							>
+								<TD>
+									<div className="flex items-center gap-3">
+										<Avatar name={patient.fullName} size="sm" />
+										<div className="min-w-0">
+											<p className="truncate text-[13.5px] font-medium text-slate-900">
+												{patient.fullName}
+											</p>
+											{patient.fullNameNe && (
+												<p className="truncate text-[11.5px] text-slate-400 font-nepali">
+													{patient.fullNameNe}
+												</p>
+											)}
 										</div>
-										{patient.fullNameNe && (
-											<div className="text-xs text-gray-500 font-nepali">
-												{patient.fullNameNe}
-											</div>
-										)}
-									</td>
-									<td className="px-4 py-3">
-										<GenderBadge gender={patient.gender} />
-									</td>
-									<td className="px-4 py-3 text-gray-600">
-										{patient.dobAD ? formatDate(patient.dobAD) : "—"}
-									</td>
-									<td className="px-4 py-3 text-gray-600">
+									</div>
+								</TD>
+								<TD className="hidden md:table-cell">
+									<span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-600">
+										{patient.patientCode}
+									</span>
+								</TD>
+								<TD className="hidden sm:table-cell">
+									<Badge tone={GENDER_TONE[patient.gender]} size="sm">
+										{t(`patient.${String(patient.gender).toLowerCase()}`)}
+									</Badge>
+								</TD>
+								<TD className="hidden lg:table-cell">
+									<p className="text-[13px] text-slate-700">
+										{patient.dobAD && calculateAge(patient.dobAD) != null
+											? `${calculateAge(patient.dobAD)} yrs`
+											: "—"}
+									</p>
+									<p className="text-[11px] text-slate-400">
+										{patient.dobAD ? formatDate(patient.dobAD) : "No DOB"}
+									</p>
+								</TD>
+								<TD className="hidden md:table-cell">
+									<p className="text-[13px] text-slate-700">
 										{patient.phone || "—"}
-									</td>
-									<td className="px-4 py-3 text-gray-600">
+									</p>
+								</TD>
+								<TD className="hidden xl:table-cell">
+									<p className="text-[13px] text-slate-700">
 										{patient.district || "—"}
-									</td>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-2">
-											<button
-												onClick={() => navigate(`/patients/${patient.id}`)}
-												className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-												title="View"
-											>
-												<Eye size={15} />
-											</button>
-											<button
-												onClick={() => navigate(`/patients/${patient.id}/edit`)}
-												className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
-												title="Edit"
-											>
-												<Edit2 size={15} />
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+									</p>
+								</TD>
+								<TD className="text-right">
+									<div className="flex items-center justify-end gap-1">
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												navigate(`/patients/${patient.id}`);
+											}}
+											className="rounded-lg p-2 text-slate-400 transition hover:bg-brand-50 hover:text-brand-600"
+											title="View patient"
+											aria-label={`View ${patient.fullName}`}
+										>
+											<Eye size={16} />
+										</button>
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												navigate(`/patients/${patient.id}/edit`);
+											}}
+											className="rounded-lg p-2 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+											title="Edit patient"
+											aria-label={`Edit ${patient.fullName}`}
+										>
+											<Pencil size={15} />
+										</button>
+									</div>
+								</TD>
+							</TR>
+						))}
+					</TBody>
+				</TableWrap>
 
 				<Pagination meta={data?.meta} page={page} setPage={setPage} />
-			</div>
+			</Card>
 		</div>
 	);
 };

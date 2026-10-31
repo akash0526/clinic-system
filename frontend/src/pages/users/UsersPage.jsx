@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit2, Power, Phone } from "lucide-react";
+import { X, Plus, Edit2, Power, Phone } from "lucide-react";
+import Button from "../../components/ui/Button";
+import PageHeader from "../../components/ui/PageHeader";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 
@@ -12,10 +14,10 @@ const usersApi = {
 };
 
 const ROLE_COLORS = {
-	ADMIN: "bg-red-100 text-red-700",
-	DOCTOR: "bg-blue-100 text-blue-700",
-	RECEPTIONIST: "bg-green-100 text-green-700",
-	LAB_TECH: "bg-purple-100 text-purple-700",
+	ADMIN: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70",
+	DOCTOR: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/70",
+	RECEPTIONIST: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70",
+	LAB_TECH: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200/70",
 };
 
 const RoleBadge = ({ role }) => (
@@ -73,20 +75,20 @@ const UserFormModal = ({ user, onClose }) => {
 		}
 	};
 
-	const isLoading = createMutation.isLoading || updateMutation.isLoading;
+	const isLoading = createMutation.isPending || updateMutation.isPending;
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-			<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-center justify-center p-4">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-md">
 				<div className="flex items-center justify-between p-5 border-b">
 					<h2 className="text-lg font-semibold">
 						{isEditing ? "Edit User" : "Add New User"}
 					</h2>
 					<button
 						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 text-xl"
+						className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
 					>
-						×
+						<X size={18} />
 					</button>
 				</div>
 
@@ -100,7 +102,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="email"
 							value={form.email}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 							required
 						/>
 					</div>
@@ -113,7 +115,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="password"
 							value={form.password}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 							minLength={8}
 							{...(!isEditing && { required: true })}
 						/>
@@ -127,7 +129,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="fullName"
 							value={form.fullName}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 							required
 						/>
 					</div>
@@ -140,7 +142,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="fullNameNe"
 							value={form.fullNameNe}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-nepali focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-nepali"
 						/>
 					</div>
 					<div>
@@ -151,7 +153,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="role"
 							value={form.role}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 							required
 						>
 							<option value="ADMIN">Admin</option>
@@ -169,7 +171,7 @@ const UserFormModal = ({ user, onClose }) => {
 							name="phone"
 							value={form.phone}
 							onChange={handleChange}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 					{form.role === "DOCTOR" && (
@@ -183,7 +185,7 @@ const UserFormModal = ({ user, onClose }) => {
 									name="licenseNumber"
 									value={form.licenseNumber}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 								/>
 							</div>
 							<div>
@@ -195,7 +197,7 @@ const UserFormModal = ({ user, onClose }) => {
 									name="specialization"
 									value={form.specialization}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 								/>
 							</div>
 						</>
@@ -205,7 +207,7 @@ const UserFormModal = ({ user, onClose }) => {
 						<button
 							type="button"
 							onClick={onClose}
-							className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+							className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 						>
 							Cancel
 						</button>
@@ -242,42 +244,45 @@ const UsersPage = () => {
 	});
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			<div className="flex items-center justify-between mb-6">
-				<h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-				<button
-					onClick={() => {
-						setEditUser(null);
-						setShowForm(true);
-					}}
-					className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
-				>
-					<Plus size={16} /> Add User
-				</button>
-			</div>
+		<div className="page">
+			<PageHeader
+				title="Users"
+				description="Staff accounts, roles and access"
+				actions={
+					<Button
+						icon={Plus}
+						onClick={() => {
+							setEditUser(null);
+							setShowForm(true);
+						}}
+					>
+						Add user
+					</Button>
+				}
+			/>
 
-			<div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+			<div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
 				<table className="w-full text-sm">
-					<thead className="bg-gray-50 border-b">
+					<thead className="bg-slate-50/80">
 						<tr>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+							<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
 								User
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+							<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
 								Role
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+							<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
 								Contact
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+							<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
 								Status
 							</th>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+							<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
 								Actions
 							</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-gray-100">
+					<tbody className="divide-y divide-slate-100">
 						{isLoading && (
 							<tr>
 								<td
@@ -289,8 +294,8 @@ const UsersPage = () => {
 							</tr>
 						)}
 						{users?.map((user) => (
-							<tr key={user.id} className="hover:bg-gray-50">
-								<td className="px-4 py-3">
+							<tr key={user.id} className="transition-colors hover:bg-slate-50/70">
+								<td className="px-4 py-3.5">
 									<div className="flex items-center gap-3">
 										<div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm">
 											{user.fullName?.charAt(0)?.toUpperCase()}
@@ -308,7 +313,7 @@ const UsersPage = () => {
 										</div>
 									</div>
 								</td>
-								<td className="px-4 py-3">
+								<td className="px-4 py-3.5">
 									<RoleBadge role={user.role} />
 									{user.specialization && (
 										<p className="text-xs text-gray-500 mt-1">
@@ -324,14 +329,14 @@ const UsersPage = () => {
 									)}
 									{user.licenseNumber && <div>Lic: {user.licenseNumber}</div>}
 								</td>
-								<td className="px-4 py-3">
+								<td className="px-4 py-3.5">
 									<span
-										className={`text-xs px-2 py-0.5 rounded-full ${user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+										className={`text-xs px-2 py-0.5 rounded-full ${user.isActive ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70" : "bg-gray-100 text-gray-500"}`}
 									>
 										{user.isActive ? "Active" : "Inactive"}
 									</span>
 								</td>
-								<td className="px-4 py-3">
+								<td className="px-4 py-3.5">
 									<div className="flex items-center gap-2">
 										<button
 											onClick={() => {

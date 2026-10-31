@@ -23,8 +23,9 @@ const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const UsersPage = lazy(() => import("./pages/users/UsersPage"));
 
 const PageLoader = () => (
-	<div className="flex h-64 items-center justify-center text-gray-400">
-		Loading…
+	<div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+		<span className="h-7 w-7 animate-spin rounded-full border-[3px] border-brand-100 border-t-brand-600" />
+		<p className="text-xs font-medium text-slate-400">Loading…</p>
 	</div>
 );
 

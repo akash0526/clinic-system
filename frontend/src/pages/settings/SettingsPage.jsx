@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
-import { Save, Settings } from "lucide-react";
+import { Save } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
 import api from "../../api/axios";
 
 const settingsApi = {
@@ -21,7 +22,7 @@ const Field = ({ label, children }) => (
 
 const Input = (props) => (
 	<input
-		className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+		className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 		{...props}
 	/>
 );
@@ -58,16 +59,16 @@ const SettingsPage = () => {
 		return <div className="p-6 text-gray-400">Loading settings...</div>;
 
 	return (
-		<div className="p-6 max-w-3xl mx-auto">
-			<div className="flex items-center gap-3 mb-6">
-				<Settings size={22} className="text-primary-600" />
-				<h1 className="text-2xl font-bold text-gray-900">Settings / सेटिङ</h1>
-			</div>
+		<div className="page max-w-3xl">
+			<PageHeader
+				title="Settings"
+				description="Clinic profile, billing defaults and preferences · सेटिङ"
+			/>
 
 			<form onSubmit={handleSubmit((d) => mutation.mutate(d))}>
-				<div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+				<div className="space-y-7 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6">
 					<div>
-						<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">
+						<h3 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
 							Clinic Information
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -77,7 +78,7 @@ const SettingsPage = () => {
 							<Field label="Clinic Name (Nepali / नेपाली)">
 								<Input
 									{...register("clinic_name_ne")}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-nepali focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-nepali"
 								/>
 							</Field>
 							<Field label="Phone">
@@ -98,7 +99,7 @@ const SettingsPage = () => {
 					</div>
 
 					<div>
-						<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">
+						<h3 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
 							Billing & Finance
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -106,7 +107,7 @@ const SettingsPage = () => {
 								<Input
 									{...register("currency")}
 									readOnly
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-gray-50"
 								/>
 							</Field>
 							<Field label="Tax / VAT (%)">
@@ -132,7 +133,7 @@ const SettingsPage = () => {
 					</div>
 
 					<div>
-						<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">
+						<h3 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
 							Appointment Settings
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,14 +161,14 @@ const SettingsPage = () => {
 					</div>
 
 					<div>
-						<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">
+						<h3 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
 							SMS / Notifications
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<Field label="Enable SMS">
 								<select
 									{...register("sms_enabled")}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 								>
 									<option value="false">Disabled</option>
 									<option value="true">Enabled</option>
@@ -176,14 +177,14 @@ const SettingsPage = () => {
 						</div>
 					</div>
 
-					<div className="pt-4 border-t flex justify-end">
+					<div className="flex justify-end border-t border-slate-100 pt-4">
 						<button
 							type="submit"
-							disabled={mutation.isLoading}
-							className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+							disabled={mutation.isPending}
+							className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<Save size={15} />
-							{mutation.isLoading ? "Saving..." : "Save Settings"}
+							{mutation.isPending ? "Saving…" : "Save settings"}
 						</button>
 					</div>
 				</div>

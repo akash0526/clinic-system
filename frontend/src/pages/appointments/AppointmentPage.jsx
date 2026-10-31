@@ -1,38 +1,50 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { Plus, Search, Calendar, Clock } from "lucide-react";
+import {
+	Plus,
+	Calendar,
+	Clock,
+	CalendarX2,
+	ChevronLeft,
+	ChevronRight,
+	Check,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { appointmentsApi } from "../../api/appointments.api";
 import { patientsApi } from "../../api/patients.api";
-import { todayDateInputValue, formatDate } from "../../utils/date";
+import { todayDateInputValue, formatDate, toDateInputValue } from "../../utils/date";
+import PageHeader from "../../components/ui/PageHeader";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Modal from "../../components/ui/Modal";
+import { StatusBadge } from "../../components/ui/Badge";
+import Avatar from "../../components/ui/Avatar";
+import EmptyState from "../../components/ui/EmptyState";
+import Input, { SearchInput, Select, Textarea } from "../../components/ui/Input";
+import {
+	TableWrap,
+	THead,
+	TH,
+	TBody,
+	TR,
+	TD,
+	TableState,
+} from "../../components/ui/Table";
+import { cn } from "../../utils/cn";
 
-const StatusBadge = ({ status }) => {
-	const map = {
-		SCHEDULED: "bg-blue-100 text-blue-700",
-		CONFIRMED: "bg-green-100 text-green-700",
-		IN_PROGRESS: "bg-yellow-100 text-yellow-700",
-		COMPLETED: "bg-gray-100 text-gray-600",
-		CANCELLED: "bg-red-100 text-red-600",
-		NO_SHOW: "bg-orange-100 text-orange-600",
-	};
-	return (
-		<span className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status]}`}>
-			{status}
-		</span>
-	);
-};
+const STATUSES = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
 
+// ─── New appointment modal ────────────────────────────────
 const NewAppointmentModal = ({ onClose }) => {
 	const queryClient = useQueryClient();
+	const [patientSearch, setPatientSearch] = useState("");
+	const [selectedPatient, setSelectedPatient] = useState(null);
 
 	const { data: doctors = [] } = useQuery({
 		queryKey: ["doctors"],
 		queryFn: () => appointmentsApi.getDoctors().then((r) => r.data.data),
 	});
-
-	const [patientSearch, setPatientSearch] = useState("");
-	const [selectedPatient, setSelectedPatient] = useState(null);
 
 	const { data: patients } = useQuery({
 		queryKey: ["patient-search", patientSearch],
@@ -48,306 +60,362 @@ const NewAppointmentModal = ({ onClose }) => {
 	} = useForm({
 		defaultValues: {
 			appointmentDateAD: todayDateInputValue(),
+			appointmentTime: "10:00",
 			type: "OPD",
 			duration: 15,
 		},
 	});
 
 	const mutation = useMutation({
-		mutationFn: (data) =>
-			appointmentsApi.create({ ...data, patientId: selectedPatient.id }),
+		mutationFn: (data) => appointmentsApi.create({ ...data, patientId: selectedPatient.id }),
 		onSuccess: () => {
-			toast.success("Appointment booked!");
-			queryClient.invalidateQueries(["appointments"]);
+			toast.success("Appointment booked");
+			queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			queryClient.invalidateQueries({ queryKey: ["today-appointments"] });
 			onClose();
 		},
+		onError: (err) =>
+			toast.error(err.response?.data?.message || "Could not book the appointment"),
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-			<div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-				<div className="flex items-center justify-between p-5 border-b">
-					<h2 className="text-lg font-semibold">New Appointment</h2>
-					<button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">
-						×
-					</button>
-				</div>
-
-				<form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-5 space-y-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Patient <span className="text-red-500">*</span>
-						</label>
-						{selectedPatient ? (
-							<div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-								<div>
-									<p className="text-sm font-medium">{selectedPatient.fullName}</p>
-									<p className="text-xs text-gray-500">
-										{selectedPatient.patientCode} · {selectedPatient.phone}
-									</p>
-								</div>
-								<button
-									type="button"
-									onClick={() => setSelectedPatient(null)}
-									className="text-xs text-red-500 hover:underline"
-								>
-									Change
-								</button>
+		<Modal
+			onClose={onClose}
+			size="xl"
+			icon={Calendar}
+			title="New appointment"
+			description="Pick a patient, a doctor and a time slot."
+			footer={
+				<>
+					<Button variant="ghost" onClick={onClose}>
+						Cancel
+					</Button>
+					<Button
+						form="new-appointment-form"
+						type="submit"
+						loading={mutation.isPending}
+						disabled={!selectedPatient}
+						icon={Check}
+					>
+						Book appointment
+					</Button>
+				</>
+			}
+		>
+			<form
+				id="new-appointment-form"
+				onSubmit={handleSubmit((d) => mutation.mutate(d))}
+				className="space-y-4"
+			>
+				{/* Patient picker */}
+				<div>
+					<label className="label">
+						Patient <span className="text-rose-500">*</span>
+					</label>
+					{selectedPatient ? (
+						<div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-3.5 py-3">
+							<Avatar name={selectedPatient.fullName} size="sm" />
+							<div className="min-w-0 flex-1">
+								<p className="truncate text-[13.5px] font-medium text-slate-900">
+									{selectedPatient.fullName}
+								</p>
+								<p className="truncate text-[11.5px] text-slate-500">
+									{selectedPatient.patientCode}
+									{selectedPatient.phone ? ` · ${selectedPatient.phone}` : ""}
+								</p>
 							</div>
-						) : (
-							<div className="relative">
-								<input
-									value={patientSearch}
-									onChange={(e) => setPatientSearch(e.target.value)}
-									placeholder="Search by name, code or phone..."
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-								/>
-								{patients?.length > 0 && (
-									<div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1">
-										{patients.map((p) => (
+							<button
+								type="button"
+								onClick={() => setSelectedPatient(null)}
+								className="rounded-lg px-2 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-100"
+							>
+								Change
+							</button>
+						</div>
+					) : (
+						<div className="relative">
+							<SearchInput
+								value={patientSearch}
+								onChange={(e) => setPatientSearch(e.target.value)}
+								placeholder="Search by name, code or phone…"
+								autoFocus
+							/>
+							{patientSearch.length > 1 && (
+								<div className="absolute left-0 right-0 top-full z-20 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lift">
+									{patients?.length ? (
+										patients.map((p) => (
 											<button
-												type="button"
 												key={p.id}
+												type="button"
 												onClick={() => {
 													setSelectedPatient(p);
 													setPatientSearch("");
 												}}
-												className="flex items-center gap-3 w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
+												className="flex w-full items-center gap-3 border-b border-slate-100 px-3.5 py-2.5 text-left transition last:border-0 hover:bg-slate-50"
 											>
-												<div>
-													<p className="font-medium">{p.fullName}</p>
-													<p className="text-xs text-gray-400">
-														{p.patientCode} · {p.phone}
+												<Avatar name={p.fullName} size="xs" />
+												<span className="min-w-0 flex-1">
+													<p className="truncate text-[13px] font-medium text-slate-800">
+														{p.fullName}
 													</p>
-												</div>
+													<p className="truncate text-[11px] text-slate-400">
+														{p.patientCode}
+														{p.phone ? ` · ${p.phone}` : ""}
+													</p>
+												</span>
 											</button>
-										))}
-									</div>
-								)}
-							</div>
-						)}
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Doctor <span className="text-red-500">*</span>
-						</label>
-						<select
-							{...register("doctorId", { required: true })}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-						>
-							<option value="">Select doctor...</option>
-							{doctors.map((d) => (
-								<option key={d.id} value={d.id}>
-									Dr. {d.fullName} — {d.specialization}
-								</option>
-							))}
-						</select>
-						{errors.doctorId && <p className="mt-1 text-xs text-red-500">Doctor is required</p>}
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Appointment Date <span className="text-red-500">*</span>
-						</label>
-						<input
-							type="date"
-							{...register("appointmentDateAD", { required: true })}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-						/>
-					</div>
-
-					<div className="grid grid-cols-2 gap-3">
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">
-								Time <span className="text-red-500">*</span>
-							</label>
-							<input
-								type="time"
-								{...register("appointmentTime", { required: true })}
-								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-							/>
+										))
+									) : (
+										<p className="px-3.5 py-4 text-center text-xs text-slate-400">
+											No patients found
+										</p>
+									)}
+								</div>
+							)}
 						</div>
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-							<select
-								{...register("type")}
-								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-							>
-								<option value="OPD">OPD</option>
-								<option value="Follow-up">Follow-up</option>
-								<option value="Emergency">Emergency</option>
-							</select>
-						</div>
-					</div>
+					)}
+				</div>
 
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-1">Chief Complaint</label>
-						<textarea
-							{...register("chiefComplaint")}
-							rows={2}
-							placeholder="Patient's main complaint..."
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-						/>
-					</div>
+				<div className="grid gap-4 sm:grid-cols-2">
+					<Select
+						label="Doctor"
+						required
+						{...register("doctorId", { required: true })}
+						error={errors.doctorId && "Please choose a doctor"}
+					>
+						<option value="">Select doctor…</option>
+						{doctors.map((d) => (
+							<option key={d.id} value={d.id}>
+								Dr. {d.fullName}
+								{d.specialization ? ` — ${d.specialization}` : ""}
+							</option>
+						))}
+					</Select>
 
-					<div className="flex gap-3 pt-2">
-						<button
-							type="button"
-							onClick={onClose}
-							className="flex-1 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50"
-						>
-							Cancel
-						</button>
-						<button
-							type="submit"
-							disabled={!selectedPatient || mutation.isLoading}
-							className="flex-1 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
-						>
-							{mutation.isLoading ? "Booking..." : "Book Appointment"}
-						</button>
-					</div>
-				</form>
-			</div>
-		</div>
+					<Select label="Visit type" {...register("type")}>
+						<option value="OPD">OPD</option>
+						<option value="Follow-up">Follow-up</option>
+						<option value="Emergency">Emergency</option>
+					</Select>
+
+					<Input
+						label="Date"
+						type="date"
+						required
+						{...register("appointmentDateAD", { required: true })}
+					/>
+
+					<Input
+						label="Time"
+						type="time"
+						required
+						{...register("appointmentTime", { required: true })}
+					/>
+				</div>
+
+				<Textarea
+					label="Chief complaint"
+					rows={3}
+					placeholder="Patient's main complaint…"
+					{...register("chiefComplaint")}
+				/>
+			</form>
+		</Modal>
 	);
 };
 
+// ─── Page ─────────────────────────────────────────────────
 const AppointmentPage = () => {
 	const [showModal, setShowModal] = useState(false);
 	const [filterDate, setFilterDate] = useState(todayDateInputValue());
 	const [search, setSearch] = useState("");
 	const queryClient = useQueryClient();
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isFetching } = useQuery({
 		queryKey: ["appointments", { filterDate, search }],
 		queryFn: () => appointmentsApi.list({ date: filterDate, search }).then((r) => r.data),
+		keepPreviousData: true,
 	});
 
 	const statusMutation = useMutation({
 		mutationFn: ({ id, status }) => appointmentsApi.updateStatus(id, status),
 		onSuccess: () => {
-			queryClient.invalidateQueries(["appointments"]);
+			queryClient.invalidateQueries({ queryKey: ["appointments"] });
 			toast.success("Status updated");
 		},
 	});
 
+	const shiftDay = (days) => {
+		const d = new Date(`${filterDate}T00:00:00`);
+		d.setDate(d.getDate() + days);
+		setFilterDate(toDateInputValue(d));
+	};
+
+	const isToday = filterDate === todayDateInputValue();
+	const rows = data?.data ?? [];
+
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			<div className="flex items-center justify-between mb-6">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-					<p className="text-sm text-gray-500">{data?.meta?.total ?? 0} appointments</p>
-				</div>
-				<button
-					onClick={() => setShowModal(true)}
-					className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
-				>
-					<Plus size={16} /> New Appointment
-				</button>
-			</div>
+		<div className="page">
+			<PageHeader
+				title="Appointments"
+				description={`${data?.meta?.total ?? 0} ${
+					data?.meta?.total === 1 ? "appointment" : "appointments"
+				} · ${formatDate(filterDate)}`}
+				actions={
+					<Button icon={Plus} onClick={() => setShowModal(true)}>
+						New appointment
+					</Button>
+				}
+			/>
 
-			<div className="bg-white rounded-xl border border-gray-200 mb-4">
-				<div className="flex flex-wrap gap-3 p-4 items-center">
-					<div className="relative flex-1 min-w-48">
-						<Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-						<input
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search patient..."
-							className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-						/>
-					</div>
-					<div className="flex items-center gap-2">
-						<Calendar size={15} className="text-gray-400" />
-						<input
-							type="date"
-							value={filterDate}
-							onChange={(e) => setFilterDate(e.target.value)}
-							className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-						/>
+			<Card className="overflow-hidden">
+				<div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+					<SearchInput
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						placeholder="Search patient…"
+						className="w-full lg:max-w-xs"
+					/>
+
+					<div className="flex flex-wrap items-center gap-2">
+						<div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+							<button
+								onClick={() => shiftDay(-1)}
+								className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
+								aria-label="Previous day"
+							>
+								<ChevronLeft size={16} />
+							</button>
+							<input
+								type="date"
+								value={filterDate}
+								onChange={(e) => setFilterDate(e.target.value)}
+								className="h-8 border-0 bg-transparent px-1 text-[13px] shadow-none focus:ring-0"
+							/>
+							<button
+								onClick={() => shiftDay(1)}
+								className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
+								aria-label="Next day"
+							>
+								<ChevronRight size={16} />
+							</button>
+						</div>
+
+						<button
+							onClick={() => setFilterDate(todayDateInputValue())}
+							className={cn(
+								"h-9 rounded-xl px-3 text-xs font-medium transition",
+								isToday
+									? "bg-brand-50 text-brand-700"
+									: "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+							)}
+						>
+							Today
+						</button>
 					</div>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm">
-						<thead className="bg-gray-50 border-y border-gray-200">
+				<TableWrap>
+					<THead>
+						<tr>
+							<TH className="w-16">Token</TH>
+							<TH>Patient</TH>
+							<TH className="hidden lg:table-cell">Doctor</TH>
+							<TH>Time</TH>
+							<TH className="hidden md:table-cell">Type</TH>
+							<TH className="hidden xl:table-cell">Complaint</TH>
+							<TH>Status</TH>
+							<TH className="text-right">Update</TH>
+						</tr>
+					</THead>
+					<TBody className={cn(isFetching && "opacity-60 transition-opacity")}>
+						{isLoading && <TableState loading />}
+
+						{!isLoading && rows.length === 0 && (
 							<tr>
-								{[
-									"Token",
-									"Patient",
-									"Doctor",
-									"Date",
-									"Time",
-									"Type",
-									"Complaint",
-									"Status",
-									"Actions",
-								].map((h) => (
-									<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-										{h}
-									</th>
-								))}
+								<td colSpan={8}>
+									<EmptyState
+										icon={CalendarX2}
+										title="No appointments for this day"
+										description="Choose another date, or book a new appointment for this patient."
+										action={
+											<Button
+												size="sm"
+												icon={Plus}
+												onClick={() => setShowModal(true)}
+											>
+												New appointment
+											</Button>
+										}
+									/>
+								</td>
 							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100">
-							{isLoading && (
-								<tr>
-									<td colSpan={9} className="px-4 py-10 text-center text-gray-400">
-										Loading...
-									</td>
-								</tr>
-							)}
-							{!isLoading && !data?.data?.length && (
-								<tr>
-									<td colSpan={9} className="px-4 py-10 text-center text-gray-400">
-										No appointments found
-									</td>
-								</tr>
-							)}
-							{data?.data?.map((a) => (
-								<tr key={a.id} className="hover:bg-gray-50">
-									<td className="px-4 py-3">
-										<span className="w-7 h-7 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">
-											{a.tokenNumber}
-										</span>
-									</td>
-									<td className="px-4 py-3">
-										<p className="font-medium text-gray-900">{a.patient?.fullName}</p>
-										<p className="text-xs text-gray-400">{a.patient?.patientCode}</p>
-									</td>
-									<td className="px-4 py-3 text-gray-600">Dr. {a.doctor?.fullName}</td>
-									<td className="px-4 py-3 text-gray-600">{formatDate(a.appointmentDateAD)}</td>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-1 text-gray-600">
-											<Clock size={13} />
-											{a.appointmentTime}
+						)}
+
+						{rows.map((a) => (
+							<TR key={a.id}>
+								<TD>
+									<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700 ring-1 ring-inset ring-brand-100">
+										{a.tokenNumber ?? "—"}
+									</span>
+								</TD>
+								<TD>
+									<div className="flex items-center gap-2.5">
+										<Avatar name={a.patient?.fullName} size="xs" className="hidden sm:inline-flex" />
+										<div className="min-w-0">
+											<p className="truncate text-[13.5px] font-medium text-slate-900">
+												{a.patient?.fullName}
+											</p>
+											<p className="truncate text-[11px] text-slate-400">
+												{a.patient?.patientCode}
+												<span className="lg:hidden">
+													{a.doctor?.fullName ? ` · Dr. ${a.doctor.fullName}` : ""}
+												</span>
+											</p>
 										</div>
-									</td>
-									<td className="px-4 py-3 text-gray-600">{a.type}</td>
-									<td className="px-4 py-3 text-gray-500 max-w-xs truncate">{a.chiefComplaint || "—"}</td>
-									<td className="px-4 py-3">
-										<StatusBadge status={a.status} />
-									</td>
-									<td className="px-4 py-3">
-										<select
-											value={a.status}
-											onChange={(e) => statusMutation.mutate({ id: a.id, status: e.target.value })}
-											className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none"
-										>
-											{["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"].map((s) => (
-												<option key={s} value={s}>
-													{s}
-												</option>
-											))}
-										</select>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			</div>
+									</div>
+								</TD>
+								<TD className="hidden lg:table-cell">
+									<p className="text-[13px] text-slate-700">
+										{a.doctor?.fullName ? `Dr. ${a.doctor.fullName}` : "—"}
+									</p>
+								</TD>
+								<TD>
+									<span className="inline-flex items-center gap-1.5 text-[13px] text-slate-700">
+										<Clock size={13} className="text-slate-400" />
+										{a.appointmentTime}
+									</span>
+								</TD>
+								<TD className="hidden md:table-cell">
+									<span className="text-[12px] text-slate-500">{a.type}</span>
+								</TD>
+								<TD className="hidden max-w-[200px] truncate xl:table-cell">
+									{a.chiefComplaint || <span className="text-slate-300">—</span>}
+								</TD>
+								<TD>
+									<StatusBadge status={a.status} />
+								</TD>
+								<TD className="text-right">
+									<select
+										value={a.status}
+										onChange={(e) =>
+											statusMutation.mutate({ id: a.id, status: e.target.value })
+										}
+										aria-label={`Update status for ${a.patient?.fullName}`}
+										className="h-8 w-[132px] cursor-pointer rounded-lg py-1 pl-2 pr-7 text-[11.5px] capitalize"
+									>
+										{STATUSES.map((s) => (
+											<option key={s} value={s}>
+												{s.replaceAll("_", " ").toLowerCase()}
+											</option>
+										))}
+									</select>
+								</TD>
+							</TR>
+						))}
+					</TBody>
+				</TableWrap>
+			</Card>
 
 			{showModal && <NewAppointmentModal onClose={() => setShowModal(false)} />}
 		</div>

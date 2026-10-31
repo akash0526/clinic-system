@@ -77,3 +77,29 @@ Update or remove them before real deployment.
 ## Notes
 - Frontend build has been verified after the AD-only cleanup.
 - Backend app load and Prisma schema validation have also been verified.
+
+## Frontend design system
+
+The UI uses a small, shared design system so every screen looks and behaves the same.
+
+- **Theme tokens** live in `frontend/tailwind.config.js`
+  - `brand` / `primary`: clinical teal scale (`brand-600` is the main action colour)
+  - `gray` is mapped to Tailwind `slate` for cooler, cleaner neutrals
+  - `shadow-soft`, `shadow-card`, `shadow-lift`, `shadow-pop` for depth
+  - `animate-fade-in`, `animate-fade-in-up`, `animate-scale-in` for smooth motion
+- **Global element styles** live in `frontend/src/index.css`
+  - consistent fields, focus rings, scrollbars and page/surface helpers
+  - motion is disabled automatically for `prefers-reduced-motion`
+- **Shared components** live in `frontend/src/components/ui`
+  - `Button`, `Input` / `Select` / `Textarea` / `SearchInput`, `Card`,
+    `Badge` / `StatusBadge`, `Table`, `Modal`, `Pagination`, `PageHeader`,
+    `EmptyState`, `Avatar`, `Skeleton`
+- **Layout** (`components/layout`)
+  - sticky blurred top bar, grouped collapsible sidebar (persisted), mobile drawer
+- **UX conventions**
+  - every list screen has search, filters, skeleton loading and a friendly empty state
+  - destructive or long actions show inline loading states
+  - pages are responsive from ~360px upwards; tables collapse less important columns
+
+When adding a screen, start from `<div className="page">`, a `PageHeader`, and the
+shared `Card` + `Table` primitives instead of hand-rolling new classes.

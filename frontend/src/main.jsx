@@ -23,9 +23,22 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 			<RouterProvider router={router} />
 			<Toaster
 				position="top-right"
+				gutter={10}
+				containerStyle={{ top: 76, right: 20 }}
 				toastOptions={{
 					duration: 3000,
-					style: { fontSize: "14px" },
+					style: {
+						fontSize: "13.5px",
+						fontWeight: 500,
+						color: "#0f172a",
+						background: "#ffffff",
+						border: "1px solid #e2e8f0",
+						borderRadius: "12px",
+						padding: "10px 14px",
+						boxShadow: "0 12px 32px -20px rgba(15, 23, 42, 0.35)",
+					},
+					success: { iconTheme: { primary: "#0d9488", secondary: "#ffffff" } },
+					error: { iconTheme: { primary: "#e11d48", secondary: "#ffffff" } },
 				}}
 			/>
 		</QueryClientProvider>
