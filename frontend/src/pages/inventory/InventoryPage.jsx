@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 
@@ -32,8 +33,8 @@ const StockAdjustModal = ({ item, onClose }) => {
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-			<div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-center justify-center p-4">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-sm p-6">
 				<h3 className="text-lg font-semibold mb-1">Adjust Stock</h3>
 				<p className="text-sm text-gray-500 mb-4">
 					{item.name} · Current: {item.currentStock} {item.unit}
@@ -47,7 +48,7 @@ const StockAdjustModal = ({ item, onClose }) => {
 						<select
 							value={type}
 							onChange={(e) => setType(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 						>
 							<option value="PURCHASE">Purchase (In)</option>
 							<option value="DISPENSED">Dispensed (Out)</option>
@@ -65,7 +66,7 @@ const StockAdjustModal = ({ item, onClose }) => {
 							min="1"
 							value={quantity}
 							onChange={(e) => setQuantity(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 					<div>
@@ -77,7 +78,7 @@ const StockAdjustModal = ({ item, onClose }) => {
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							placeholder="Optional notes..."
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 				</div>
@@ -85,16 +86,16 @@ const StockAdjustModal = ({ item, onClose }) => {
 				<div className="flex gap-3 mt-5">
 					<button
 						onClick={onClose}
-						className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+						className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 					>
 						Cancel
 					</button>
 					<button
 						onClick={() => mutation.mutate()}
-						disabled={mutation.isLoading}
+						disabled={mutation.isPending}
 						className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
 					>
-						{mutation.isLoading ? "Saving..." : "Confirm"}
+						{mutation.isPending ? "Saving..." : "Confirm"}
 					</button>
 				</div>
 			</div>
@@ -113,12 +114,13 @@ const InventoryPage = () => {
 	});
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			<div className="flex items-center justify-between mb-6">
-				<h1 className="text-2xl font-bold text-gray-900">Inventory / भण्डार</h1>
-			</div>
+		<div className="page">
+			<PageHeader
+				title="Inventory"
+				description="Medicines, consumables and equipment · भण्डार"
+			/>
 
-			<div className="bg-white rounded-xl border border-gray-200">
+			<div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
 				<div className="flex flex-wrap gap-3 p-4 border-b">
 					<div className="relative flex-1 min-w-48">
 						<Search
@@ -129,13 +131,13 @@ const InventoryPage = () => {
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							placeholder="Search items..."
-							className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm"
 						/>
 					</div>
 					<select
 						value={category}
 						onChange={(e) => setCategory(e.target.value)}
-						className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+						className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 					>
 						<option value="">All Categories</option>
 						<option value="MEDICINE">Medicine</option>
@@ -146,7 +148,7 @@ const InventoryPage = () => {
 
 				<div className="overflow-x-auto">
 					<table className="w-full text-sm">
-						<thead className="bg-gray-50 border-b">
+						<thead className="bg-slate-50/80">
 							<tr>
 								{[
 									"Code",
@@ -160,14 +162,14 @@ const InventoryPage = () => {
 								].map((h) => (
 									<th
 										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase"
+										className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500"
 									>
 										{h}
 									</th>
 								))}
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-gray-100">
+						<tbody className="divide-y divide-slate-100">
 							{isLoading && (
 								<tr>
 									<td
@@ -179,7 +181,7 @@ const InventoryPage = () => {
 								</tr>
 							)}
 							{data?.data?.map((item) => (
-								<tr key={item.id} className="hover:bg-gray-50">
+								<tr key={item.id} className="transition-colors hover:bg-slate-50/70">
 									<td className="px-4 py-3 font-mono text-xs text-gray-600">
 										{item.itemCode}
 									</td>
@@ -189,12 +191,12 @@ const InventoryPage = () => {
 									<td className="px-4 py-3 text-gray-500">
 										{item.genericName || "—"}
 									</td>
-									<td className="px-4 py-3">
-										<span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+									<td className="px-4 py-3.5">
+										<span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
 											{item.category}
 										</span>
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<div className="flex items-center gap-1">
 											{item.currentStock <= item.minimumStock && (
 												<AlertTriangle size={13} className="text-amber-500" />
@@ -213,7 +215,7 @@ const InventoryPage = () => {
 									<td className="px-4 py-3 text-gray-700">
 										NPR {Number(item.sellingPrice).toLocaleString()}
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<button
 											onClick={() => setAdjustItem(item)}
 											className="text-xs bg-primary-50 text-primary-700 hover:bg-primary-100 px-2 py-1 rounded font-medium"

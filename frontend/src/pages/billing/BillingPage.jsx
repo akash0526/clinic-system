@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Printer, DollarSign } from "lucide-react";
+import { X, Plus, Search, Printer, DollarSign } from "lucide-react";
+import Button from "../../components/ui/Button";
+import PageHeader from "../../components/ui/PageHeader";
 import toast from "react-hot-toast";
 import { billingApi } from "../../api/billing.api";
 import { patientsApi } from "../../api/patients.api";
@@ -18,11 +20,11 @@ const BILL_ITEMS_DEFAULTS = [
 
 const StatusBadge = ({ status }) => {
 	const map = {
-		PAID: "bg-green-100 text-green-700",
-		PENDING: "bg-yellow-100 text-yellow-700",
-		PARTIAL: "bg-blue-100 text-blue-700",
-		CANCELLED: "bg-red-100 text-red-600",
-		DRAFT: "bg-gray-100 text-gray-600",
+		PAID: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70",
+		PENDING: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/70",
+		PARTIAL: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/70",
+		CANCELLED: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70",
+		DRAFT: "bg-slate-100 text-slate-600",
 	};
 	return (
 		<span
@@ -105,10 +107,10 @@ const ItemPicker = ({ value, onPick }) => {
 				}}
 				onBlur={() => setTimeout(() => setOpen(false), 150)}
 				placeholder="Type item / lab test / free text..."
-				className="w-full border-0 focus:outline-none text-sm"
+				className="w-full rounded-lg border-0 bg-transparent px-1.5 py-1 text-[13px] shadow-none hover:border-0 focus:ring-0"
 			/>
 			{open && results.length > 0 && (
-				<div className="absolute top-full left-0 z-20 mt-1 w-72 max-h-56 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+				<div className="absolute top-full left-0 z-20 mt-1 w-72 max-h-56 overflow-auto bg-white rounded-xl border border-slate-200 shadow-lg">
 					{results.map((it) => (
 						<button
 							key={it.key}
@@ -118,7 +120,7 @@ const ItemPicker = ({ value, onPick }) => {
 								onPick(it);
 								setOpen(false);
 							}}
-							className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
+							className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3.5 py-2.5 text-left text-[13px] transition last:border-0 hover:bg-slate-50"
 						>
 							<span className="flex flex-col">
 								<span className="font-medium">
@@ -209,15 +211,15 @@ const NewBillModal = ({ onClose }) => {
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-			<div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl my-6">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-start justify-center p-4 overflow-y-auto">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-2xl my-6">
 				<div className="flex items-center justify-between p-5 border-b">
 					<h2 className="text-lg font-semibold">New Bill / नयाँ बिल</h2>
 					<button
 						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 text-xl"
+						className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
 					>
-						×
+						<X size={18} />
 					</button>
 				</div>
 
@@ -250,10 +252,10 @@ const NewBillModal = ({ onClose }) => {
 									value={patientSearch}
 									onChange={(e) => setPatientSearch(e.target.value)}
 									placeholder="Search patient..."
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 								/>
 								{patients?.length > 0 && (
-									<div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1">
+									<div className="absolute top-full left-0 right-0 bg-white rounded-xl border border-slate-200 shadow-lg z-10 mt-1">
 										{patients.map((p) => (
 											<button
 												key={p.id}
@@ -261,7 +263,7 @@ const NewBillModal = ({ onClose }) => {
 													setSelectedPatient(p);
 													setPatientSearch("");
 												}}
-												className="flex flex-col w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
+												className="flex w-full flex-col border-b border-slate-100 px-3.5 py-2.5 text-left text-[13px] transition last:border-0 hover:bg-slate-50"
 											>
 												<span className="font-medium">{p.fullName}</span>
 												<span className="text-xs text-gray-400">
@@ -288,7 +290,7 @@ const NewBillModal = ({ onClose }) => {
 								<Plus size={12} /> Add Item
 							</button>
 						</div>
-						<div className="border border-gray-200 rounded-lg overflow-visible">
+						<div className="rounded-xl border border-slate-200 overflow-visible">
 							<table className="w-full text-sm">
 								<thead className="bg-gray-50">
 									<tr>
@@ -310,7 +312,7 @@ const NewBillModal = ({ onClose }) => {
 										<th className="px-3 py-2"></th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-gray-100">
+								<tbody className="divide-y divide-slate-100">
 									{items.map((item, idx) => (
 										<tr key={idx}>
 											<td className="px-2 py-1.5">
@@ -329,7 +331,7 @@ const NewBillModal = ({ onClose }) => {
 													onChange={(e) =>
 														updateItem(idx, "category", e.target.value)
 													}
-													className="text-xs border-0 focus:outline-none bg-transparent"
+													className="h-7 cursor-pointer rounded-lg border-0 bg-transparent py-0 pl-1 pr-6 text-[11.5px] shadow-none hover:border-0 focus:ring-0"
 												>
 													{[
 														"CONSULTATION",
@@ -352,7 +354,7 @@ const NewBillModal = ({ onClose }) => {
 													onChange={(e) =>
 														updateItem(idx, "quantity", e.target.value)
 													}
-													className="w-full border-0 focus:outline-none text-sm text-center"
+													className="w-full rounded-lg border-0 bg-transparent px-1 py-1 text-center text-[13px] shadow-none hover:border-0 focus:ring-0"
 												/>
 											</td>
 											<td className="px-2 py-1.5 w-24">
@@ -363,7 +365,7 @@ const NewBillModal = ({ onClose }) => {
 													onChange={(e) =>
 														updateItem(idx, "unitPrice", e.target.value)
 													}
-													className="w-full border-0 focus:outline-none text-sm text-right"
+													className="w-full rounded-lg border-0 bg-transparent px-1 py-1 text-right text-[13px] shadow-none hover:border-0 focus:ring-0"
 												/>
 											</td>
 											<td className="px-2 py-1.5 text-right text-gray-700 font-medium">
@@ -402,7 +404,7 @@ const NewBillModal = ({ onClose }) => {
 									onChange={(e) =>
 										setDiscount((d) => ({ ...d, type: e.target.value }))
 									}
-									className="text-xs border border-gray-300 rounded px-1 py-0.5"
+									className="text-xs border border-slate-200 rounded px-1 py-0.5"
 								>
 									<option value="FIXED">NPR</option>
 									<option value="PERCENT">%</option>
@@ -414,7 +416,7 @@ const NewBillModal = ({ onClose }) => {
 									onChange={(e) =>
 										setDiscount((d) => ({ ...d, value: e.target.value }))
 									}
-									className="w-20 border border-gray-300 rounded px-2 py-0.5 text-sm text-right"
+									className="w-20 border border-slate-200 rounded px-2 py-0.5 text-sm text-right"
 								/>
 								<span className="text-gray-500">
 									= NPR {discountAmt.toFixed(0)}
@@ -438,7 +440,7 @@ const NewBillModal = ({ onClose }) => {
 							<select
 								value={paymentMethod}
 								onChange={(e) => setPaymentMethod(e.target.value)}
-								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+								className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 							>
 								{["CASH", "ESEWA", "KHALTI", "BANK_TRANSFER", "INSURANCE"].map(
 									(m) => (
@@ -459,7 +461,7 @@ const NewBillModal = ({ onClose }) => {
 								max={total}
 								value={paidAmount}
 								onChange={(e) => setPaidAmount(e.target.value)}
-								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+								className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 							/>
 						</div>
 					</div>
@@ -476,18 +478,18 @@ const NewBillModal = ({ onClose }) => {
 					<div className="flex gap-3 pt-2">
 						<button
 							onClick={onClose}
-							className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+							className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 						>
 							Cancel
 						</button>
 						<button
 							onClick={() => mutation.mutate()}
 							disabled={
-								!selectedPatient || items.length === 0 || mutation.isLoading
+								!selectedPatient || items.length === 0 || mutation.isPending
 							}
 							className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
 						>
-							{mutation.isLoading ? "Creating..." : "Create Bill"}
+							{mutation.isPending ? "Creating..." : "Create Bill"}
 						</button>
 					</div>
 				</div>
@@ -522,15 +524,15 @@ const PaymentModal = ({ bill, onClose }) => {
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-			<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl my-6">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-start justify-center p-4 overflow-y-auto">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-md my-6">
 				<div className="flex items-center justify-between p-5 border-b">
 					<h2 className="text-lg font-semibold">Record Payment</h2>
 					<button
 						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 text-xl"
+						className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
 					>
-						×
+						<X size={18} />
 					</button>
 				</div>
 
@@ -560,7 +562,7 @@ const PaymentModal = ({ bill, onClose }) => {
 							max={due}
 							value={amount}
 							onChange={(e) => setAmount(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 
@@ -571,7 +573,7 @@ const PaymentModal = ({ bill, onClose }) => {
 						<select
 							value={method}
 							onChange={(e) => setMethod(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 						>
 							{["CASH", "ESEWA", "KHALTI", "BANK_TRANSFER", "INSURANCE"].map(
 								(m) => (
@@ -591,27 +593,27 @@ const PaymentModal = ({ bill, onClose }) => {
 							value={reference}
 							onChange={(e) => setReference(e.target.value)}
 							placeholder="Transaction ID / note"
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 
 					<div className="flex gap-3 pt-2">
 						<button
 							onClick={onClose}
-							className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+							className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 						>
 							Cancel
 						</button>
 						<button
 							onClick={() => mutation.mutate()}
 							disabled={
-								mutation.isLoading ||
+								mutation.isPending ||
 								Number(amount) <= 0 ||
 								Number(amount) > due
 							}
 							className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
 						>
-							{mutation.isLoading ? "Saving..." : "Record Payment"}
+							{mutation.isPending ? "Saving..." : "Record Payment"}
 						</button>
 					</div>
 				</div>
@@ -634,23 +636,18 @@ const BillingPage = () => {
 	});
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			<div className="flex items-center justify-between mb-6">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900">Billing / बिलिङ</h1>
-					<p className="text-sm text-gray-500">
-						{data?.meta?.total ?? 0} bills
-					</p>
-				</div>
-				<button
-					onClick={() => setShowModal(true)}
-					className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
-				>
-					<Plus size={16} /> New Bill
-				</button>
-			</div>
+		<div className="page">
+			<PageHeader
+				title="Billing"
+				description={`${data?.meta?.total ?? 0} bills · बिलिङ`}
+				actions={
+					<Button icon={Plus} onClick={() => setShowModal(true)}>
+						New bill
+					</Button>
+				}
+			/>
 
-			<div className="bg-white rounded-xl border border-gray-200">
+			<div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
 				<div className="flex flex-wrap gap-3 p-4 border-b items-center">
 					<div className="relative flex-1 min-w-48">
 						<Search
@@ -661,7 +658,7 @@ const BillingPage = () => {
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							placeholder="Search bill number or patient..."
-							className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm"
 						/>
 					</div>
 					<div className="flex gap-2">
@@ -669,7 +666,7 @@ const BillingPage = () => {
 							<button
 								key={s}
 								onClick={() => setStatusFilter(s)}
-								className={`px-3 py-1.5 text-xs rounded-full font-medium border transition-colors ${
+								className={`h-8 px-3 text-xs rounded-full font-medium border transition ${
 									statusFilter === s
 										? "bg-primary-600 text-white border-primary-600"
 										: "bg-white text-gray-600 border-gray-300 hover:border-primary-400"
@@ -683,7 +680,7 @@ const BillingPage = () => {
 
 				<div className="overflow-x-auto">
 					<table className="w-full text-sm">
-						<thead className="bg-gray-50 border-b">
+						<thead className="bg-slate-50/80">
 							<tr>
 								{[
 									"Bill #",
@@ -697,14 +694,14 @@ const BillingPage = () => {
 								].map((h) => (
 									<th
 										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase"
+										className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500"
 									>
 										{h}
 									</th>
 								))}
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-gray-100">
+						<tbody className="divide-y divide-slate-100">
 							{isLoading && (
 								<tr>
 									<td
@@ -716,17 +713,17 @@ const BillingPage = () => {
 								</tr>
 							)}
 							{data?.data?.map((bill) => (
-								<tr key={bill.id} className="hover:bg-gray-50">
+								<tr key={bill.id} className="transition-colors hover:bg-slate-50/70">
 									<td className="px-4 py-3 font-mono text-xs text-gray-700">
 										{bill.billNumber}
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<p className="font-medium">{bill.patient?.fullName}</p>
 										<p className="text-xs text-gray-400">
 											{bill.patient?.patientCode}
 										</p>
 									</td>
-									<td className="px-4 py-3 text-gray-600">
+									<td className="px-4 py-3.5 text-slate-600">
 										{formatDate(bill.billDateAD)}
 									</td>
 									<td className="px-4 py-3 font-medium">
@@ -740,10 +737,10 @@ const BillingPage = () => {
 											? `NPR ${Number(bill.dueAmount).toLocaleString()}`
 											: "—"}
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<StatusBadge status={bill.status} />
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<div className="flex items-center gap-1">
 											{Number(bill.dueAmount) > 0 &&
 												bill.status !== "CANCELLED" &&

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, FlaskConical, CheckCircle } from "lucide-react";
+import Button from "../../components/ui/Button";
+import PageHeader from "../../components/ui/PageHeader";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 import { patientsApi } from "../../api/patients.api";
@@ -14,10 +16,10 @@ const labApi = {
 
 const StatusBadge = ({ status }) => {
 	const map = {
-		PENDING: "bg-yellow-100 text-yellow-700",
-		IN_PROGRESS: "bg-blue-100 text-blue-700",
-		COMPLETED: "bg-green-100 text-green-700",
-		CANCELLED: "bg-red-100 text-red-600",
+		PENDING: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/70",
+		IN_PROGRESS: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/70",
+		COMPLETED: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70",
+		CANCELLED: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70",
 	};
 	return (
 		<span
@@ -55,8 +57,8 @@ const ResultModal = ({ result, onClose }) => {
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-			<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-center justify-center p-4">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-md p-6">
 				<h3 className="text-lg font-semibold mb-1">Enter Lab Result</h3>
 				<p className="text-sm text-gray-500 mb-1">{result.test?.testName}</p>
 				<p className="text-xs text-gray-400 mb-4">
@@ -73,7 +75,7 @@ const ResultModal = ({ result, onClose }) => {
 							value={value}
 							onChange={(e) => setValue(e.target.value)}
 							placeholder={`Normal: ${result.test?.normalRange}`}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 					<div>
@@ -83,7 +85,7 @@ const ResultModal = ({ result, onClose }) => {
 						<select
 							value={interpretation}
 							onChange={(e) => setInterpretation(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 						>
 							<option value="">Select...</option>
 							<option value="NORMAL">Normal</option>
@@ -100,7 +102,7 @@ const ResultModal = ({ result, onClose }) => {
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							rows={2}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 						/>
 					</div>
 				</div>
@@ -108,13 +110,13 @@ const ResultModal = ({ result, onClose }) => {
 				<div className="flex gap-3 mt-5">
 					<button
 						onClick={onClose}
-						className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+						className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 					>
 						Cancel
 					</button>
 					<button
 						onClick={() => mutation.mutate()}
-						disabled={!value || mutation.isLoading}
+						disabled={!value || mutation.isPending}
 						className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
 					>
 						Save Result
@@ -157,8 +159,8 @@ const OrderModal = ({ onClose }) => {
 	});
 
 	return (
-		<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-			<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+		<div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-fade-in z-50 flex items-center justify-center p-4">
+			<div className="relative bg-white rounded-2xl border border-slate-200/70 shadow-pop animate-scale-in w-full max-w-md p-6">
 				<h3 className="text-lg font-semibold mb-4">Order Lab Test</h3>
 
 				<div className="space-y-4">
@@ -184,10 +186,10 @@ const OrderModal = ({ onClose }) => {
 									value={patientSearch}
 									onChange={(e) => setPatientSearch(e.target.value)}
 									placeholder="Search patient..."
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+									className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"
 								/>
 								{patients?.length > 0 && (
-									<div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1">
+									<div className="absolute top-full left-0 right-0 bg-white rounded-xl border border-slate-200 shadow-lg z-10 mt-1">
 										{patients.map((p) => (
 											<button
 												key={p.id}
@@ -195,7 +197,7 @@ const OrderModal = ({ onClose }) => {
 													setSelectedPatient(p);
 													setPatientSearch("");
 												}}
-												className="flex flex-col w-full px-3 py-2 text-left hover:bg-gray-50 text-sm border-b last:border-0"
+												className="flex w-full flex-col border-b border-slate-100 px-3.5 py-2.5 text-left text-[13px] transition last:border-0 hover:bg-slate-50"
 											>
 												<span className="font-medium">{p.fullName}</span>
 												<span className="text-xs text-gray-400">
@@ -216,7 +218,7 @@ const OrderModal = ({ onClose }) => {
 						<select
 							value={selectedTest}
 							onChange={(e) => setSelectedTest(e.target.value)}
-							className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white"
 						>
 							<option value="">Select test...</option>
 							{tests.map((t) => (
@@ -232,13 +234,13 @@ const OrderModal = ({ onClose }) => {
 				<div className="flex gap-3 mt-5">
 					<button
 						onClick={onClose}
-						className="flex-1 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+						className="flex-1 py-2 text-sm border border-slate-200 rounded-lg hover:bg-gray-50"
 					>
 						Cancel
 					</button>
 					<button
 						onClick={() => mutation.mutate()}
-						disabled={!selectedPatient || !selectedTest || mutation.isLoading}
+						disabled={!selectedPatient || !selectedTest || mutation.isPending}
 						className="flex-1 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
 					>
 						Order Test
@@ -263,20 +265,18 @@ const LabPage = () => {
 	});
 
 	return (
-		<div className="p-6 max-w-7xl mx-auto">
-			<div className="flex items-center justify-between mb-6">
-				<h1 className="text-2xl font-bold text-gray-900">
-					Laboratory / प्रयोगशाला
-				</h1>
-				<button
-					onClick={() => setShowOrder(true)}
-					className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700"
-				>
-					<Plus size={16} /> Order Test
-				</button>
-			</div>
+		<div className="page">
+			<PageHeader
+				title="Laboratory"
+				description="Test orders and results · प्रयोगशाला"
+				actions={
+					<Button icon={Plus} onClick={() => setShowOrder(true)}>
+						Order test
+					</Button>
+				}
+			/>
 
-			<div className="bg-white rounded-xl border border-gray-200">
+			<div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
 				<div className="flex flex-wrap gap-3 p-4 border-b">
 					<div className="relative flex-1 min-w-48">
 						<Search
@@ -287,7 +287,7 @@ const LabPage = () => {
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							placeholder="Search patient..."
-							className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+							className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3.5 text-sm"
 						/>
 					</div>
 					<div className="flex gap-2">
@@ -295,7 +295,7 @@ const LabPage = () => {
 							<button
 								key={s}
 								onClick={() => setStatusFilter(s)}
-								className={`px-3 py-1.5 text-xs rounded-full font-medium border transition-colors
+								className={`h-8 px-3 text-xs rounded-full font-medium border transition
                   ${statusFilter === s ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-600 border-gray-300 hover:border-primary-400"}`}
 							>
 								{s || "All"}
@@ -306,7 +306,7 @@ const LabPage = () => {
 
 				<div className="overflow-x-auto">
 					<table className="w-full text-sm">
-						<thead className="bg-gray-50 border-b">
+						<thead className="bg-slate-50/80">
 							<tr>
 								{[
 									"Patient",
@@ -319,14 +319,14 @@ const LabPage = () => {
 								].map((h) => (
 									<th
 										key={h}
-										className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase"
+										className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500"
 									>
 										{h}
 									</th>
 								))}
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-gray-100">
+						<tbody className="divide-y divide-slate-100">
 							{isLoading && (
 								<tr>
 									<td
@@ -338,14 +338,14 @@ const LabPage = () => {
 								</tr>
 							)}
 							{data?.data?.map((r) => (
-								<tr key={r.id} className="hover:bg-gray-50">
-									<td className="px-4 py-3">
+								<tr key={r.id} className="transition-colors hover:bg-slate-50/70">
+									<td className="px-4 py-3.5">
 										<p className="font-medium">{r.patient?.fullName}</p>
 										<p className="text-xs text-gray-400">
 											{r.patient?.patientCode}
 										</p>
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<p className="font-medium">{r.test?.testName}</p>
 										<p className="text-xs text-gray-400">{r.test?.testCode}</p>
 									</td>
@@ -355,7 +355,7 @@ const LabPage = () => {
 									<td className="px-4 py-3 text-gray-500 text-xs">
 										{new Date(r.orderedAt).toLocaleString("en-NP")}
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										<StatusBadge status={r.status} />
 									</td>
 									<td className="px-4 py-3 text-gray-700">
@@ -369,7 +369,7 @@ const LabPage = () => {
 											"—"
 										)}
 									</td>
-									<td className="px-4 py-3">
+									<td className="px-4 py-3.5">
 										{r.status !== "COMPLETED" && (
 											<button
 												onClick={() => setEnterResult(r)}

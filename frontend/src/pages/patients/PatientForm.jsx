@@ -48,8 +48,7 @@ const formSchema = z.object({
 const Input = forwardRef(({ className = "", ...props }, ref) => (
 	<input
 		ref={ref}
-		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+		className={`w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm
       disabled:bg-gray-100 ${className}`}
 		{...props}
 	/>
@@ -58,8 +57,7 @@ const Input = forwardRef(({ className = "", ...props }, ref) => (
 const Select = forwardRef(({ children, className = "", ...props }, ref) => (
 	<select
 		ref={ref}
-		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white
-      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${className}`}
+		className={`w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm bg-white ${className}`}
 		{...props}
 	>
 		{children}
@@ -69,7 +67,7 @@ const Select = forwardRef(({ children, className = "", ...props }, ref) => (
 const Textarea = forwardRef(({ className = "", ...props }, ref) => (
 	<textarea
 		ref={ref}
-		className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${className}`}
+		className={`w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm ${className}`}
 		{...props}
 	/>
 ));
@@ -79,14 +77,14 @@ const Field = ({ label, labelNe, error, required, children }) => (
 		<label className="block text-sm font-medium text-gray-700 mb-1">
 			{label}
 			{labelNe && (
-				<span className="ml-2 text-gray-400 text-xs font-nepali">
+				<span className="ml-1.5 text-[11px] text-slate-400 font-nepali">
 					{labelNe}
 				</span>
 			)}
-			{required && <span className="text-red-500 ml-1">*</span>}
+			{required && <span className="ml-0.5 text-rose-500">*</span>}
 		</label>
 		{children}
-		{error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+		{error && <p className="mt-1.5 text-xs font-medium text-rose-600">{error}</p>}
 	</div>
 );
 
@@ -105,12 +103,12 @@ const TagInput = ({ value = [], onChange, placeholder }) => {
 	const remove = (tag) => onChange(value.filter((t) => t !== tag));
 
 	return (
-		<div className="border border-gray-300 rounded-lg p-2 min-h-[42px]">
+		<div className="border border-slate-200 rounded-lg p-2 min-h-[42px]">
 			<div className="flex flex-wrap gap-1 mb-1">
 				{value.map((tag) => (
 					<span
 						key={tag}
-						className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full"
+						className="flex items-center gap-1 bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/70 text-xs px-2 py-0.5 rounded-full"
 					>
 						{tag}
 						<button
@@ -134,8 +132,9 @@ const TagInput = ({ value = [], onChange, placeholder }) => {
 };
 
 const Section = ({ title }) => (
-	<div className="col-span-full mt-2 mb-1">
-		<h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b pb-2">
+	<div className="col-span-full mt-3 mb-0.5 flex items-center gap-2">
+		<span className="h-4 w-1 rounded-full bg-brand-500/70" />
+		<h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
 			{title}
 		</h3>
 	</div>
@@ -204,35 +203,39 @@ const PatientForm = () => {
 
 	if (loadingPatient)
 		return (
-			<div className="flex items-center justify-center h-64 text-gray-400">
-				Loading patient data...
+			<div className="page max-w-4xl">
+				<div className="space-y-4">
+					<div className="skeleton h-8 w-40" />
+					<div className="skeleton h-96 rounded-2xl" />
+				</div>
 			</div>
 		);
 
 	return (
-		<div className="p-6 max-w-4xl mx-auto">
+		<div className="page max-w-4xl">
 			{/* Header */}
-			<div className="flex items-center gap-4 mb-6">
+			<div className="mb-5 flex items-center gap-3">
 				<button
 					onClick={() => navigate(-1)}
-					className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					aria-label="Back"
+					className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-800"
 				>
-					<ArrowLeft size={18} />
+					<ArrowLeft size={16} />
 				</button>
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900">
+				<div className="min-w-0">
+					<h1 className="text-[22px] font-semibold tracking-tight text-slate-900">
 						{isEditing ? t("patient.edit") : t("patient.add")}
 					</h1>
-					{isEditing && existingPatient && (
-						<p className="text-sm text-gray-500">
-							{existingPatient.patientCode}
-						</p>
-					)}
+					<p className="truncate text-[12.5px] text-slate-500">
+						{isEditing && existingPatient
+							? `${existingPatient.patientCode} · update the patient's details`
+							: "Register a new patient · नयाँ बिरामी दर्ता"}
+					</p>
 				</div>
 			</div>
 
 			<form onSubmit={handleSubmit(onSubmit)}>
-				<div className="bg-white rounded-xl border border-gray-200 p-6">
+				<div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 						{/* Personal Info */}
 						<Section title="Personal Information / व्यक्तिगत जानकारी" />
@@ -462,21 +465,21 @@ const PatientForm = () => {
 					</div>
 
 					{/* Form Actions */}
-					<div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+					<div className="mt-6 flex flex-col-reverse items-stretch gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-end">
 						<button
 							type="button"
 							onClick={() => navigate(-1)}
-							className="px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+							className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
 						>
 							{t("common.cancel")}
 						</button>
 						<button
 							type="submit"
-							disabled={mutation.isLoading || (!isDirty && isEditing)}
-							className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+							disabled={mutation.isPending || (!isDirty && isEditing)}
+							className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<Save size={15} />
-							{mutation.isLoading ? "Saving..." : t("common.save")}
+							{mutation.isPending ? "Saving…" : t("common.save")}
 						</button>
 					</div>
 				</div>
