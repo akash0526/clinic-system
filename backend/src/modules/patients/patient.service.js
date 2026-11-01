@@ -1,6 +1,7 @@
 const prisma = require("../../config/db");
 const { paginate, paginateMeta } = require("../../utils/pagination");
 const { parseDateOnly } = require("../../utils/date");
+const { withConflictRetry } = require("../../utils/retry");
 
 const generatePatientCode = async () => {
 	const year = new Date().getFullYear();
@@ -62,16 +63,20 @@ const getPatientById = (id) =>
 	prisma.patient.findFirstOrThrow({ where: { id, deletedAt: null } });
 
 const createPatient = async (data) => {
-	const patientCode = await generatePatientCode();
 	const { dobAD } = normalizeDOB(data);
 	const { dobAD: _dobAD, ...rest } = data;
 
-	return prisma.patient.create({
-		data: {
-			...rest,
-			patientCode,
-			dobAD,
-		},
+	// Retry on P2002: concurrent creates can compute the same patientCode
+	// (count()+1); the loser retries and recomputes a fresh code.
+	return withConflictRetry(async () => {
+		const patientCode = await generatePatientCode();
+		return prisma.patient.create({
+			data: {
+				...rest,
+				patientCode,
+				dobAD,
+			},
+		});
 	});
 };
 

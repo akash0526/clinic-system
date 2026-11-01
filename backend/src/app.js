@@ -85,6 +85,11 @@ app.use(
 		max: 500,
 		standardHeaders: true,
 		legacyHeaders: false,
+		// Keep the standard { success, message } envelope on 429s too.
+		message: {
+			success: false,
+			message: "Too many requests. Try again later.",
+		},
 	}),
 );
 

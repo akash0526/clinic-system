@@ -15,8 +15,8 @@ const billItemSchema = z.object({
 
 const createBillSchema = z
 	.object({
-		patientId: z.string().min(1, "patientId is required"),
-		encounterId: z.string().optional().nullable(),
+		patientId: z.string().cuid("patientId must be a valid id"),
+		encounterId: z.string().cuid("encounterId must be a valid id").optional().nullable(),
 		items: z.array(billItemSchema).min(1, "At least one item is required"),
 		discountType: z.enum(["PERCENT", "FIXED"]).optional(),
 		discountValue: z.coerce.number().nonnegative().optional().default(0),

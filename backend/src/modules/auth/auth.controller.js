@@ -19,7 +19,7 @@ const cookieOptions = {
 	httpOnly: true,
 	sameSite: "none", // required for cross-site cookies
 	secure: true, // required when sameSite is "none" (HTTPS only)
-	maxAge: 24 * 60 * 60 * 1000, // 1 day (match JWT_EXPIRES_IN)
+	maxAge: env.JWT_EXPIRES_MS, // stay in sync with the JWT's expiresIn
 	path: "/",
 };
 

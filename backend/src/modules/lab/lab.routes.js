@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const authenticate = require("../../middleware/auth");
-const { isLabStaff } = require("../../middleware/rbac");
+const { isLabStaff, isStaff } = require("../../middleware/rbac");
 const prisma = require("../../config/db");
 const {
 	sendSuccess,
@@ -14,11 +14,14 @@ const {
 	updateLabResultSchema,
 } = require("./lab.validation");
 
-// Lab access must match the frontend roles: ADMIN, DOCTOR, LAB_TECH
-router.use(authenticate, isLabStaff);
+// Auth required everywhere. The test catalogue is readable by all staff
+// (ADMIN, DOCTOR, RECEPTIONIST) because the billing UI needs it when adding
+// lab items to a bill; results stay restricted to lab staff
+// (ADMIN, DOCTOR, LAB_TECH).
+router.use(authenticate);
 
 // GET /api/lab/tests
-router.get("/tests", async (req, res, next) => {
+router.get("/tests", isStaff, async (req, res, next) => {
 	try {
 		const tests = await prisma.labTest.findMany({
 			where: { isActive: true },
@@ -31,7 +34,7 @@ router.get("/tests", async (req, res, next) => {
 });
 
 // GET /api/lab/results
-router.get("/results", async (req, res, next) => {
+router.get("/results", isLabStaff, async (req, res, next) => {
 	try {
 		const { page, limit, skip } = paginate(req.query);
 		const { status, patientId, search } = req.query;
@@ -71,7 +74,7 @@ router.get("/results", async (req, res, next) => {
 });
 
 // POST /api/lab/results — order a test
-router.post("/results", validate(orderLabResultSchema, "body", 400), async (req, res, next) => {
+router.post("/results", isLabStaff, validate(orderLabResultSchema, "body", 400), async (req, res, next) => {
 	try {
 		const { patientId, testId, encounterId } = req.body;
 		const result = await prisma.labResult.create({
@@ -85,7 +88,7 @@ router.post("/results", validate(orderLabResultSchema, "body", 400), async (req,
 });
 
 // PUT /api/lab/results/:id — enter result
-router.put("/results/:id", validate(updateLabResultSchema, "body", 400), async (req, res, next) => {
+router.put("/results/:id", isLabStaff, validate(updateLabResultSchema, "body", 400), async (req, res, next) => {
 	try {
 		if (Object.keys(req.body).length === 0) {
 			return sendError(res, "No fields to update", 400);

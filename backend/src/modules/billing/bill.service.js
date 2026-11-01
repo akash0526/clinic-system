@@ -33,6 +33,36 @@ const createBill = async (data) => {
 	const status =
 		dueAmount <= 0 ? "PAID" : paidAmount > 0 ? "PARTIAL" : "PENDING";
 
+	// Referenced rows must exist — otherwise Prisma raises a FK error (P2003).
+	// Check explicitly so the client gets a clean 404 instead.
+	const patient = await prisma.patient.findUnique({
+		where: { id: data.patientId },
+		select: { id: true },
+	});
+	if (!patient) {
+		const err = new Error("Patient not found");
+		err.statusCode = 404;
+		throw err;
+	}
+	if (data.encounterId) {
+		const encounter = await prisma.encounter.findUnique({
+			where: { id: data.encounterId },
+			select: { id: true },
+		});
+		if (!encounter) {
+			const err = new Error("Encounter not found");
+			err.statusCode = 404;
+			throw err;
+		}
+	}
+
+	// Consistent with addPayment: never accept paying more than the total.
+	if (paidAmount > totalAmount + 0.001) {
+		const err = new Error("Paid amount exceeds the total amount");
+		err.statusCode = 400;
+		throw err;
+	}
+
 	// Wrap number generation + creation in one transaction so the invoice
 	// number is reserved atomically with the bill row.
 	return prisma.$transaction(async (tx) => {

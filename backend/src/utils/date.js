@@ -3,12 +3,31 @@ const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const isDateOnlyString = (value) =>
 	typeof value === "string" && DATE_ONLY_REGEX.test(value);
 
+// A date-only string that also represents a REAL calendar day.
+// Needed because `new Date("2026-02-30T00:00:00.000")` does NOT return
+// Invalid Date in V8 — it rolls over to March 2 — so we verify the
+// components round-trip exactly.
+const isValidDateOnly = (value) => {
+	if (!isDateOnlyString(value)) return false;
+	const date = new Date(`${value}T00:00:00.000`);
+	if (Number.isNaN(date.getTime())) return false;
+	const [year, month, day] = value.split("-").map(Number);
+	return (
+		date.getFullYear() === year &&
+		date.getMonth() === month - 1 &&
+		date.getDate() === day
+	);
+};
+
 const parseDateOnly = (value) => {
 	if (!value) return null;
-	if (value instanceof Date) return new Date(value);
+	if (value instanceof Date) {
+		return Number.isNaN(value.getTime()) ? null : new Date(value);
+	}
 
 	if (isDateOnlyString(value)) {
-		return new Date(`${value}T00:00:00.000`);
+		// Impossible calendar dates (2026-02-30) must not reach the database.
+		return isValidDateOnly(value) ? new Date(`${value}T00:00:00.000`) : null;
 	}
 
 	const date = new Date(value);
@@ -42,6 +61,7 @@ const formatDateOnly = (value) => {
 module.exports = {
 	DATE_ONLY_REGEX,
 	isDateOnlyString,
+	isValidDateOnly,
 	parseDateOnly,
 	startOfDay,
 	endOfDay,
