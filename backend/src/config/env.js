@@ -59,12 +59,35 @@ if (errors.length) {
 	process.exit(1);
 }
 
+// Parse a jwt-style duration ("1d", "12h", "30m", "45s", or plain seconds)
+// into milliseconds, so the auth cookie's maxAge can stay in sync with the
+// token's expiresIn instead of being hardcoded.
+const parseDurationMs = (value, fallbackMs) => {
+	const v = String(value ?? "").trim();
+	if (!v) return fallbackMs;
+	const m = v.match(/^(\d+)\s*(ms|s|m|h|d)$/i);
+	if (m) {
+		const n = parseInt(m[1], 10);
+		const unit = m[2].toLowerCase();
+		const mult =
+			unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60000 : unit === "h" ? 3600000 : 86400000;
+		return n * mult;
+	}
+	const asNum = Number(v);
+	if (Number.isFinite(asNum) && asNum > 0) return asNum * 1000; // plain seconds
+	return fallbackMs;
+};
+
+const DEFAULT_JWT_EXPIRES_IN = "1d";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN;
+
 const env = {
 	NODE_ENV,
 	PORT: parseInt(process.env.PORT, 10) || 5000,
 	DATABASE_URL: process.env.DATABASE_URL,
 	JWT_SECRET: process.env.JWT_SECRET,
-	JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
+	JWT_EXPIRES_IN,
+	JWT_EXPIRES_MS: parseDurationMs(JWT_EXPIRES_IN, 24 * 60 * 60 * 1000),
 	FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
 	COOKIE_SECURE: NODE_ENV === "production",
 	SMS_PROVIDER: process.env.SMS_PROVIDER || "dummy",

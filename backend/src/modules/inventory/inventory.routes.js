@@ -10,6 +10,7 @@ const {
 } = require("./inventory.validation");
 const { sendSuccess, sendCreated } = require("../../utils/apiResponse");
 const { paginate, paginateMeta } = require("../../utils/pagination");
+const { withConflictRetry } = require("../../utils/retry");
 
 router.use(authenticate, isStaff);
 
@@ -83,13 +84,16 @@ router.post("/", validate(createItemSchema), async (req, res, next) => {
 					? "CON"
 					: "EQP";
 
-		const item = await prisma.$transaction(async (tx) => {
-			const count = await tx.inventoryItem.count({
-				where: { category: d.category },
-			});
-			const itemCode = `${prefix}-${String(count + 1).padStart(3, "0")}`;
+		// Retry on P2002: concurrent creates can compute the same itemCode
+		// (count()+1); the loser retries and recomputes a fresh code.
+		const item = await withConflictRetry(() =>
+			prisma.$transaction(async (tx) => {
+				const count = await tx.inventoryItem.count({
+					where: { category: d.category },
+				});
+				const itemCode = `${prefix}-${String(count + 1).padStart(3, "0")}`;
 
-			return tx.inventoryItem.create({
+				return tx.inventoryItem.create({
 				data: {
 					itemCode,
 					name: d.name,
@@ -104,7 +108,8 @@ router.post("/", validate(createItemSchema), async (req, res, next) => {
 					batchNumber: d.batchNumber,
 				},
 			});
-		});
+		}),
+	);
 
 		return sendCreated(res, item);
 	} catch (err) {

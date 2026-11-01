@@ -65,11 +65,40 @@ const getAppointmentById = (id) =>
 const createAppointment = async (data, createdById) => {
 	const appointmentDateAD = parseDateOnly(data.appointmentDateAD);
 	if (!appointmentDateAD) {
-		throw new Error("Invalid appointment date. Please use YYYY-MM-DD.");
+		const err = new Error("Invalid appointment date. Please use YYYY-MM-DD.");
+		err.statusCode = 400;
+		throw err;
 	}
 
 	const dayStart = startOfDay(appointmentDateAD);
 	const dayEnd = endOfDay(appointmentDateAD);
+
+	// Referenced rows must exist, and doctorId must be an active DOCTOR —
+	// otherwise Prisma raises a FK error (P2003). Check explicitly so the
+	// client gets a clean 4xx with a useful message.
+	const patient = await prisma.patient.findUnique({
+		where: { id: data.patientId },
+		select: { id: true },
+	});
+	if (!patient) {
+		const err = new Error("Patient not found");
+		err.statusCode = 404;
+		throw err;
+	}
+	const doctor = await prisma.user.findUnique({
+		where: { id: data.doctorId },
+		select: { id: true, role: true, isActive: true },
+	});
+	if (!doctor) {
+		const err = new Error("Doctor not found");
+		err.statusCode = 404;
+		throw err;
+	}
+	if (doctor.role !== "DOCTOR" || !doctor.isActive) {
+		const err = new Error("doctorId must reference an active user with role DOCTOR");
+		err.statusCode = 400;
+		throw err;
+	}
 
 	const token =
 		(await prisma.appointment.count({

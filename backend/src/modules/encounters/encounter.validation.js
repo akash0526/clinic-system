@@ -1,6 +1,6 @@
 // Zod validation schemas for the encounters module.
 const { z } = require("zod");
-const { DATE_ONLY_REGEX } = require("../../utils/date");
+const { DATE_ONLY_REGEX, isValidDateOnly } = require("../../utils/date");
 
 const encounterSchema = z.object({
 	patientId: z.string().cuid(),
@@ -24,6 +24,7 @@ const encounterSchema = z.object({
 	followUpDateAD: z
 		.string()
 		.regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD")
+		.refine(isValidDateOnly, "Invalid calendar date")
 		.optional()
 		.or(z.literal("")),
 	followUpNotes: z.string().optional(),

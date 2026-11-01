@@ -1,11 +1,14 @@
 // Zod validation schemas for the appointments module.
 const { z } = require("zod");
-const { DATE_ONLY_REGEX } = require("../../utils/date");
+const { DATE_ONLY_REGEX, isValidDateOnly } = require("../../utils/date");
 
 const createAppointmentSchema = z.object({
 	patientId: z.string().cuid(),
 	doctorId: z.string().cuid(),
-	appointmentDateAD: z.string().regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD"),
+	appointmentDateAD: z
+		.string()
+		.regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD")
+		.refine(isValidDateOnly, "Invalid calendar date"),
 	appointmentTime: z.string(),
 	type: z.string().default("OPD"),
 	chiefComplaint: z.string().optional(),

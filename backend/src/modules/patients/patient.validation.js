@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { DATE_ONLY_REGEX } = require("../../utils/date");
+const { DATE_ONLY_REGEX, isValidDateOnly } = require("../../utils/date");
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
@@ -8,7 +8,12 @@ const createPatientSchema = z.object({
 	fullNameNe: z.string().max(100).optional(),
 	gender: z.enum(["MALE", "FEMALE", "OTHER"]),
 	bloodGroup: z.enum(BLOOD_GROUPS).optional().or(z.literal("")),
-	dobAD: z.string().regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD").optional().or(z.literal("")),
+	dobAD: z
+		.string()
+		.regex(DATE_ONLY_REGEX, "Invalid date YYYY-MM-DD")
+		.refine(isValidDateOnly, "Invalid calendar date")
+		.optional()
+		.or(z.literal("")),
 	phone: z
 		.string()
 		.regex(/^[0-9]{10}$/, "10-digit phone required")
